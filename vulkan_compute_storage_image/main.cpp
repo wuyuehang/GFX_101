@@ -8,7 +8,7 @@
 #include <vector>
 #include <SOIL/SOIL.h>
 
-#define USE_COMBINED_IMAGE_SAMPLER 0
+#define USE_COMBINED_IMAGE_SAMPLER 1
 
 class HelloVulkan {
 public:
@@ -19,25 +19,43 @@ public:
         CreateDevice();
         CreateSwapchain();
         InitSync();
-        CreateCommand();
-        CreateRenderPass();
-        CreateFramebuffer();
-        CreateVertexBuffer();
-        BakeTexture();
-        CreatePipeline();
-        BakeCommand();
+        CreateCommandBuffer();
+        {
+            CreateShaderStorageImage();
+            BakeComputeDescriptorSet();
+            CreateComputePipeline();
+            BakeComputeCommand();
+        }
+        {
+            CreateRenderPass();
+            CreateFramebuffer();
+            CreateVertexBuffer();
+            BakeGFXDescriptorSet();
+            CreatePipeline();
+            BakeCommand();
+        }
     }
     ~HelloVulkan() {
         vkDeviceWaitIdle(dev);
+        vkDestroyPipeline(dev, comp_pipeline, nullptr);
         vkDestroyPipeline(dev, pipeline, nullptr);
+        vkDestroyPipelineLayout(dev, comp_layout, nullptr);
         vkDestroyPipelineLayout(dev, layout, nullptr);
         vkDestroySampler(dev, sampler, nullptr);
-        vkDestroyImageView(dev, tex_imageview, nullptr);
-        vkFreeMemory(dev, tex_mem, nullptr);
-        vkDestroyImage(dev, tex_image, nullptr);
+        vkDestroyDescriptorSetLayout(dev, comp_dsl, nullptr);
         vkDestroyDescriptorSetLayout(dev, dsl, nullptr);
+        vkFreeDescriptorSets(dev, comp_ds_pool, 1, &comp_ds);
         vkFreeDescriptorSets(dev, pool, 1, &ds);
+        vkDestroyDescriptorPool(dev, comp_ds_pool, nullptr);
         vkDestroyDescriptorPool(dev, pool, nullptr);
+        {
+            vkDestroyImageView(dev, src_imgv, nullptr);
+            vkDestroyImageView(dev, dst_imgv, nullptr);
+            vkFreeMemory(dev, src_mem, nullptr);
+            vkFreeMemory(dev, dst_mem, nullptr);
+            vkDestroyImage(dev, src_img, nullptr);
+            vkDestroyImage(dev, dst_img, nullptr);
+        }
         vkFreeMemory(dev, interleaved_bufmem, nullptr);
         vkDestroyBuffer(dev, interleaved_buf, nullptr);
 
@@ -46,8 +64,10 @@ public:
         }
         vkDestroyRenderPass(dev, rp, nullptr);
         vkFreeCommandBuffers(dev, cmdpool, cmdbuf.size(), cmdbuf.data());
+        vkFreeCommandBuffers(dev, cmdpool, 1, &comp_cmdbuf);
         vkDestroyCommandPool(dev, cmdpool, nullptr);
         vkDestroySemaphore(dev, image_available_sema, nullptr);
+        vkDestroySemaphore(dev, compute_render_finished_sema, nullptr);
         vkDestroySemaphore(dev, image_render_finished_sema, nullptr);
         for (auto& it : swapchain_imageviews) {
             vkDestroyImageView(dev, it, nullptr);
@@ -208,22 +228,397 @@ public:
         VkSemaphoreCreateInfo sema_info {};
         sema_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         vkCreateSemaphore(dev, &sema_info, nullptr, &image_available_sema);
+        vkCreateSemaphore(dev, &sema_info, nullptr, &compute_render_finished_sema);
         vkCreateSemaphore(dev, &sema_info, nullptr, &image_render_finished_sema);
     }
-    void CreateCommand() {
+    void CreateCommandBuffer() {
         VkCommandPoolCreateInfo commandpool_info {};
         commandpool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         commandpool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // allow individual commandbuffer reset
         commandpool_info.queueFamilyIndex = q_family_index;
         vkCreateCommandPool(dev, &commandpool_info, nullptr, &cmdpool);
 
-        VkCommandBufferAllocateInfo cmdbuf_info {};
-        cmdbuf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cmdbuf_info.commandPool = cmdpool;
-        cmdbuf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        cmdbuf_info.commandBufferCount = swapchain_images.size(); // must be per image
-        cmdbuf.resize(swapchain_images.size());
-        vkAllocateCommandBuffers(dev, &cmdbuf_info, cmdbuf.data());
+        {
+            VkCommandBufferAllocateInfo cmdbuf_info {};
+            cmdbuf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            cmdbuf_info.commandPool = cmdpool;
+            cmdbuf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            cmdbuf_info.commandBufferCount = swapchain_images.size(); // must be per image
+            cmdbuf.resize(swapchain_images.size());
+            vkAllocateCommandBuffers(dev, &cmdbuf_info, cmdbuf.data());
+        }
+
+        {
+            VkCommandBufferAllocateInfo cmdbuf_info {};
+            cmdbuf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            cmdbuf_info.commandPool = cmdpool;
+            cmdbuf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            cmdbuf_info.commandBufferCount = 1; // share a compute command buffer
+            vkAllocateCommandBuffers(dev, &cmdbuf_info, &comp_cmdbuf);
+        }
+    }
+    void CreateShaderStorageImage() {
+        int w, h, c;
+        uint8_t *ptr = SOIL_load_image("beerus.png", &w, &h, &c, SOIL_LOAD_RGBA);
+        assert(ptr && w == 800 && h == 800 && c == 4);
+        // initialize src storage image
+        {
+            // first, upload the linear content to a staging buffer
+            VkBuffer linear_buf;
+            VkDeviceMemory linear_buf_mem;
+            VkBufferCreateInfo linear_buf_info {};
+            linear_buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            linear_buf_info.size = sizeof(uint8_t)*w*h*4;
+            linear_buf_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            vkCreateBuffer(dev, &linear_buf_info, nullptr, &linear_buf);
+
+            VkMemoryRequirements req {};
+            vkGetBufferMemoryRequirements(dev, linear_buf, &req);
+
+            VkMemoryAllocateInfo alloc_info {};
+            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            alloc_info.allocationSize = req.size;
+            alloc_info.memoryTypeIndex = findMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            vkAllocateMemory(dev, &alloc_info, nullptr, &linear_buf_mem);
+
+            vkBindBufferMemory(dev, linear_buf, linear_buf_mem, 0);
+
+            void *buf_ptr;
+            vkMapMemory(dev, linear_buf_mem, 0, linear_buf_info.size, 0, &buf_ptr);
+            memcpy(buf_ptr, ptr, linear_buf_info.size);
+            vkUnmapMemory(dev, linear_buf_mem);
+
+            // second, initialize image with optimal layout
+            VkImageCreateInfo image_info {};
+            image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            image_info.imageType = VK_IMAGE_TYPE_2D;
+            image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+            image_info.extent = VkExtent3D {static_cast<uint>(w), static_cast<uint>(h), 1};
+            image_info.mipLevels = 1;
+            image_info.arrayLayers = 1;
+            image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+            image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+            image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+            image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // must be VK_IMAGE_LAYOUT_UNDEFINED or VK_IMAGE_LAYOUT_PREINITIALIZED
+            vkCreateImage(dev, &image_info, nullptr, &src_img);
+
+            VkMemoryRequirements img_req {};
+            vkGetImageMemoryRequirements(dev, src_img, &img_req);
+            VkMemoryAllocateInfo img_alloc_info {};
+            img_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            img_alloc_info.allocationSize = img_req.size;
+            img_alloc_info.memoryTypeIndex = findMemoryType(img_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            vkAllocateMemory(dev, &img_alloc_info, nullptr, &src_mem);
+
+            vkBindImageMemory(dev, src_img, src_mem, 0);
+
+            VkImageViewCreateInfo imageview_info {};
+            imageview_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageview_info.image = src_img;
+            imageview_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            imageview_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+            imageview_info.components.r = VK_COMPONENT_SWIZZLE_R;
+            imageview_info.components.g = VK_COMPONENT_SWIZZLE_G;
+            imageview_info.components.b = VK_COMPONENT_SWIZZLE_B;
+            imageview_info.components.a = VK_COMPONENT_SWIZZLE_A;
+            imageview_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageview_info.subresourceRange.baseMipLevel = 0;
+            imageview_info.subresourceRange.levelCount = 1;
+            imageview_info.subresourceRange.baseArrayLayer = 0;
+            imageview_info.subresourceRange.layerCount = 1;
+            vkCreateImageView(dev, &imageview_info, nullptr, &src_imgv);
+
+            // third, blit buffer into image
+            VkCommandBufferBeginInfo cmdbuf_begin_info {};
+            cmdbuf_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+            vkBeginCommandBuffer(cmdbuf[0], &cmdbuf_begin_info);
+
+            VkImageMemoryBarrier imb {};
+            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imb.srcAccessMask = 0;
+            imb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            imb.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imb.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.image = src_img;
+            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imb.subresourceRange.baseMipLevel = 0;
+            imb.subresourceRange.levelCount = 1;
+            imb.subresourceRange.baseArrayLayer = 0;
+            imb.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(cmdbuf[0], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
+
+            VkBufferImageCopy region {
+                .bufferOffset = 0,
+                .bufferRowLength = 0,
+                .bufferImageHeight = 0,
+                .imageSubresource = VkImageSubresourceLayers {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = 0,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+                .imageOffset = VkOffset3D { 0, 0, 0 },
+                .imageExtent = VkExtent3D { 800, 800, 1 },
+            };
+            vkCmdCopyBufferToImage(cmdbuf[0], linear_buf, src_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region); // must be VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL or VK_IMAGE_LAYOUT_GENERAL
+
+            imb = {};
+            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            imb.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            imb.newLayout = VK_IMAGE_LAYOUT_GENERAL; // Could not be VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL!
+            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.image = src_img;
+            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imb.subresourceRange.baseMipLevel = 0;
+            imb.subresourceRange.levelCount = 1;
+            imb.subresourceRange.baseArrayLayer = 0;
+            imb.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(cmdbuf[0], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
+            vkEndCommandBuffer(cmdbuf[0]);
+
+            VkSubmitInfo submit_info {};
+            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cmdbuf[0];
+
+            VkFence fence;
+            VkFenceCreateInfo fence_info {};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            vkCreateFence(dev, &fence_info, nullptr, &fence);
+            vkQueueSubmit(queue, 1, &submit_info, fence);
+            vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX);
+
+            vkDestroyFence(dev, fence, nullptr);
+            vkFreeMemory(dev, linear_buf_mem, nullptr);
+            vkDestroyBuffer(dev, linear_buf, nullptr);
+            vkResetCommandBuffer(cmdbuf[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+        }
+        // initialize dst storage image
+        // because we call compute and graphics pipeline in a loop style, set the dst initial
+        // layout as read access and shader read only
+        {
+            VkImageCreateInfo image_info {};
+            image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            image_info.imageType = VK_IMAGE_TYPE_2D;
+            image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+            image_info.extent = VkExtent3D {static_cast<uint>(w), static_cast<uint>(h), 1};
+            image_info.mipLevels = 1;
+            image_info.arrayLayers = 1;
+            image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+            image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+            image_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // must be VK_IMAGE_LAYOUT_UNDEFINED or VK_IMAGE_LAYOUT_PREINITIALIZED
+            vkCreateImage(dev, &image_info, nullptr, &dst_img);
+
+            VkMemoryRequirements img_req {};
+            vkGetImageMemoryRequirements(dev, dst_img, &img_req);
+            VkMemoryAllocateInfo img_alloc_info {};
+            img_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            img_alloc_info.allocationSize = img_req.size;
+            img_alloc_info.memoryTypeIndex = findMemoryType(img_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            vkAllocateMemory(dev, &img_alloc_info, nullptr, &dst_mem);
+
+            vkBindImageMemory(dev, dst_img, dst_mem, 0);
+
+            VkImageViewCreateInfo imageview_info {};
+            imageview_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageview_info.image = dst_img;
+            imageview_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            imageview_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+            imageview_info.components.r = VK_COMPONENT_SWIZZLE_R;
+            imageview_info.components.g = VK_COMPONENT_SWIZZLE_G;
+            imageview_info.components.b = VK_COMPONENT_SWIZZLE_B;
+            imageview_info.components.a = VK_COMPONENT_SWIZZLE_A;
+            imageview_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageview_info.subresourceRange.baseMipLevel = 0;
+            imageview_info.subresourceRange.levelCount = 1;
+            imageview_info.subresourceRange.baseArrayLayer = 0;
+            imageview_info.subresourceRange.layerCount = 1;
+            vkCreateImageView(dev, &imageview_info, nullptr, &dst_imgv);
+
+            VkCommandBufferBeginInfo cmdbuf_begin_info {};
+            cmdbuf_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+            vkBeginCommandBuffer(cmdbuf[0], &cmdbuf_begin_info);
+
+            VkImageMemoryBarrier imb {};
+            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imb.srcAccessMask = 0;
+            imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            imb.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imb.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.image = dst_img;
+            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imb.subresourceRange.baseMipLevel = 0;
+            imb.subresourceRange.levelCount = 1;
+            imb.subresourceRange.baseArrayLayer = 0;
+            imb.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(cmdbuf[0], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
+            vkEndCommandBuffer(cmdbuf[0]);
+
+            VkSubmitInfo submit_info {};
+            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cmdbuf[0];
+
+            VkFence fence;
+            VkFenceCreateInfo fence_info {};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            vkCreateFence(dev, &fence_info, nullptr, &fence);
+            vkQueueSubmit(queue, 1, &submit_info, fence);
+            vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX);
+            vkDestroyFence(dev, fence, nullptr);
+            vkResetCommandBuffer(cmdbuf[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+        }
+    }
+    void BakeComputeDescriptorSet() {
+        std::vector<VkDescriptorSetLayoutBinding> bindings(2);
+        bindings[0].binding = 0;
+        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        bindings[0].descriptorCount = 1;
+        bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[1].binding = 1;
+        bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        bindings[1].descriptorCount = 1;
+        bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        VkDescriptorSetLayoutCreateInfo dsl_info {};
+        dsl_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        dsl_info.bindingCount = bindings.size();
+        dsl_info.pBindings = bindings.data();
+        vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &comp_dsl);
+
+        std::vector<VkDescriptorPoolSize> pool_size(1);
+        pool_size[0].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        pool_size[0].descriptorCount = bindings.size();
+
+        VkDescriptorPoolCreateInfo pool_info {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1;
+        pool_info.poolSizeCount = pool_size.size();
+        pool_info.pPoolSizes = pool_size.data();
+        vkCreateDescriptorPool(dev, &pool_info, nullptr, &comp_ds_pool);
+
+        VkDescriptorSetAllocateInfo alloc_info {};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = comp_ds_pool;
+        alloc_info.descriptorSetCount = 1;
+        alloc_info.pSetLayouts = &comp_dsl;
+        vkAllocateDescriptorSets(dev, &alloc_info, &comp_ds);
+
+        VkDescriptorImageInfo src_img_info {
+            .sampler = VK_NULL_HANDLE,
+            .imageView = src_imgv,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        };
+        VkDescriptorImageInfo dst_img_info {
+            .sampler = VK_NULL_HANDLE,
+            .imageView = dst_imgv,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        };
+        std::vector<VkWriteDescriptorSet> wds(2);
+        wds[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        wds[0].dstSet = comp_ds;
+        wds[0].dstBinding = 0;
+        wds[0].dstArrayElement = 0;
+        wds[0].descriptorCount = 1;
+        wds[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        wds[0].pImageInfo = &src_img_info;
+        wds[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        wds[1].dstSet = comp_ds;
+        wds[1].dstBinding = 1;
+        wds[1].dstArrayElement = 0;
+        wds[1].descriptorCount = 1;
+        wds[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        wds[1].pImageInfo = &dst_img_info;
+
+        vkUpdateDescriptorSets(dev, wds.size(), wds.data(), 0, nullptr);
+    }
+    void CreateComputePipeline() {
+        auto comp_spv = loadSPIRV("img_ls.comp.spv");
+        VkShaderModule comp;
+        VkShaderModuleCreateInfo shader_info {};
+        shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        shader_info.codeSize = comp_spv.size();
+        shader_info.pCode = reinterpret_cast<const uint32_t*>(comp_spv.data());
+        vkCreateShaderModule(dev, &shader_info, nullptr, &comp);
+
+        VkPipelineShaderStageCreateInfo comp_stage_info {};
+        comp_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        comp_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        comp_stage_info.module = comp;
+        comp_stage_info.pName = "main";
+
+        VkPipelineLayoutCreateInfo layout_info {};
+        layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        layout_info.setLayoutCount = 1;
+        layout_info.pSetLayouts = &comp_dsl;
+        layout_info.pushConstantRangeCount = 0;
+        layout_info.pPushConstantRanges = nullptr;
+        vkCreatePipelineLayout(dev, &layout_info, nullptr, &comp_layout);
+
+        VkComputePipelineCreateInfo pipe_info {};
+        pipe_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipe_info.stage = comp_stage_info;
+        pipe_info.layout = comp_layout;
+        vkCreateComputePipelines(dev, VK_NULL_HANDLE, 1, &pipe_info, nullptr, &comp_pipeline);
+
+        vkDestroyShaderModule(dev, comp, nullptr);
+    }
+    void BakeComputeCommand() {
+        VkCommandBufferBeginInfo cmdbuf_begin_info {};
+        cmdbuf_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        vkBeginCommandBuffer(comp_cmdbuf, &cmdbuf_begin_info);
+        {
+            // transfer to VK_IMAGE_LAYOUT_GENERAL for compute pipeline usage
+            VkImageMemoryBarrier imb {};
+            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imb.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            imb.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            imb.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imb.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.image = dst_img;
+            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imb.subresourceRange.baseMipLevel = 0;
+            imb.subresourceRange.levelCount = 1;
+            imb.subresourceRange.baseArrayLayer = 0;
+            imb.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(comp_cmdbuf, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
+        }
+        vkCmdBindPipeline(comp_cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, comp_pipeline);
+        vkCmdBindDescriptorSets(comp_cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, comp_layout, 0, 1, &comp_ds, 0, nullptr);
+        vkCmdDispatch(comp_cmdbuf, 25, 25, 1); // (25x25x1), (32x32x1)
+        {
+            // transfer to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL for graphics pipeline usage
+            VkImageMemoryBarrier imb {};
+            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imb.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            imb.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imb.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.image = dst_img;
+            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imb.subresourceRange.baseMipLevel = 0;
+            imb.subresourceRange.levelCount = 1;
+            imb.subresourceRange.baseArrayLayer = 0;
+            imb.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(comp_cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
+        }
+        vkEndCommandBuffer(comp_cmdbuf);
     }
     void CreateRenderPass() {
         VkAttachmentDescription att_desc {};
@@ -285,6 +680,9 @@ public:
             -1.0, -1.0, 0.0, 1.0, /* Position */ 0.0, 0.0, /* Coordinate */
             1.0, -1.0, 0.0, 1.0, /* Position */ 1.0, 0.0, /* Coordinate */
             -1.0, 1.0, 0.0, 1.0, /* Position */ 0.0, 1.0, /* Cooridnate */
+            -1.0, 1.0, 0.0, 1.0, /* Position */ 0.0, 1.0, /* Cooridnate */
+            1.0, -1.0, 0.0, 1.0, /* Position */ 1.0, 0.0, /* Cooridnate */
+            1.0, 1.0, 0.0, 1.0, /* Position */ 1.0, 1.0, /* Cooridnate */
         };
         VkBuffer interleaved_buf_staging;
         VkDeviceMemory interleaved_bufmem_staging;
@@ -355,174 +753,22 @@ public:
         vkDestroyBuffer(dev, interleaved_buf_staging, nullptr);
         vkResetCommandBuffer(cmdbuf[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     }
-    void BakeTexture() {
-        {
-            // first, upload the linear content to a staging buffer
-            VkBuffer linear_buf;
-            VkDeviceMemory linear_buf_mem;
-            int w, h, c;
-            uint8_t *ptr = SOIL_load_image("ReneDescartes.jpeg", &w, &h, &c, SOIL_LOAD_RGBA);
-            assert(ptr);
-            VkBufferCreateInfo linear_buf_info {};
-            linear_buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            linear_buf_info.size = sizeof(uint8_t)*w*h*4;
-            linear_buf_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            vkCreateBuffer(dev, &linear_buf_info, nullptr, &linear_buf);
-
-            VkMemoryRequirements req {};
-            vkGetBufferMemoryRequirements(dev, linear_buf, &req);
-
-            VkMemoryAllocateInfo alloc_info {};
-            alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            alloc_info.allocationSize = req.size;
-            alloc_info.memoryTypeIndex = findMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-            vkAllocateMemory(dev, &alloc_info, nullptr, &linear_buf_mem);
-
-            vkBindBufferMemory(dev, linear_buf, linear_buf_mem, 0);
-
-            void *buf_ptr;
-            vkMapMemory(dev, linear_buf_mem, 0, linear_buf_info.size, 0, &buf_ptr);
-            memcpy(buf_ptr, ptr, linear_buf_info.size);
-            vkUnmapMemory(dev, linear_buf_mem);
-
-            // second, initialize image with optimal layout
-            VkImageCreateInfo image_info {};
-            image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            image_info.imageType = VK_IMAGE_TYPE_2D;
-            image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
-            image_info.extent = VkExtent3D {static_cast<uint>(w), static_cast<uint>(h), 1};
-            image_info.mipLevels = 1;
-            image_info.arrayLayers = 1;
-            image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-            image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-            image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // must be VK_IMAGE_LAYOUT_UNDEFINED or VK_IMAGE_LAYOUT_PREINITIALIZED
-            vkCreateImage(dev, &image_info, nullptr, &tex_image);
-
-            VkMemoryRequirements img_req {};
-            vkGetImageMemoryRequirements(dev, tex_image, &img_req);
-            VkMemoryAllocateInfo img_alloc_info {};
-            img_alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            img_alloc_info.allocationSize = img_req.size;
-            img_alloc_info.memoryTypeIndex = findMemoryType(img_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-            vkAllocateMemory(dev, &img_alloc_info, nullptr, &tex_mem);
-
-            vkBindImageMemory(dev, tex_image, tex_mem, 0);
-            VkImageViewCreateInfo imageview_info {};
-            imageview_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageview_info.image = tex_image;
-            imageview_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            imageview_info.format = VK_FORMAT_R8G8B8A8_UNORM;
-            imageview_info.components.r = VK_COMPONENT_SWIZZLE_R;
-            imageview_info.components.g = VK_COMPONENT_SWIZZLE_G;
-            imageview_info.components.b = VK_COMPONENT_SWIZZLE_B;
-            imageview_info.components.a = VK_COMPONENT_SWIZZLE_A;
-            imageview_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imageview_info.subresourceRange.baseMipLevel = 0;
-            imageview_info.subresourceRange.levelCount = 1;
-            imageview_info.subresourceRange.baseArrayLayer = 0;
-            imageview_info.subresourceRange.layerCount = 1;
-            vkCreateImageView(dev, &imageview_info, nullptr, &tex_imageview);
-
-            // third, blit buffer into image
-            VkCommandBufferBeginInfo cmdbuf_begin_info {};
-            cmdbuf_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-            vkBeginCommandBuffer(cmdbuf[0], &cmdbuf_begin_info);
-
-            VkImageMemoryBarrier imb {};
-            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            imb.srcAccessMask = 0;
-            imb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            imb.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imb.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imb.image = tex_image;
-            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imb.subresourceRange.baseMipLevel = 0;
-            imb.subresourceRange.levelCount = 1;
-            imb.subresourceRange.baseArrayLayer = 0;
-            imb.subresourceRange.layerCount = 1;
-            vkCmdPipelineBarrier(cmdbuf[0], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
-
-            VkBufferImageCopy region {
-                .bufferOffset = 0,
-                .bufferRowLength = 0,
-                .bufferImageHeight = 0,
-                .imageSubresource = VkImageSubresourceLayers {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .mipLevel = 0,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-                .imageOffset = VkOffset3D { 0, 0, 0 },
-                .imageExtent = VkExtent3D { 800, 800, 1 },
-            };
-            vkCmdCopyBufferToImage(cmdbuf[0], linear_buf, tex_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region); // must be VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL or VK_IMAGE_LAYOUT_GENERAL
-
-            imb = {};
-            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            imb.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            imb.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imb.image = tex_image;
-            imb.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imb.subresourceRange.baseMipLevel = 0;
-            imb.subresourceRange.levelCount = 1;
-            imb.subresourceRange.baseArrayLayer = 0;
-            imb.subresourceRange.layerCount = 1;
-            vkCmdPipelineBarrier(cmdbuf[0], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
-            vkEndCommandBuffer(cmdbuf[0]);
-
-            VkSubmitInfo submit_info {};
-            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submit_info.commandBufferCount = 1;
-            submit_info.pCommandBuffers = &cmdbuf[0];
-
-            VkFence fence;
-            VkFenceCreateInfo fence_info {};
-            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            vkCreateFence(dev, &fence_info, nullptr, &fence);
-            vkQueueSubmit(queue, 1, &submit_info, fence);
-            vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX);
-
-            vkDestroyFence(dev, fence, nullptr);
-            vkFreeMemory(dev, linear_buf_mem, nullptr);
-            vkDestroyBuffer(dev, linear_buf, nullptr);
-            vkResetCommandBuffer(cmdbuf[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-        }
-
+    void BakeGFXDescriptorSet() {
         VkSamplerCreateInfo sampler_info {};
         sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        sampler_info.magFilter = VK_FILTER_LINEAR;
-        sampler_info.minFilter = VK_FILTER_LINEAR;
+        sampler_info.magFilter = VK_FILTER_NEAREST;
+        sampler_info.minFilter = VK_FILTER_NEAREST;
         sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         vkCreateSampler(dev, &sampler_info, nullptr, &sampler);
 
-#if USE_COMBINED_IMAGE_SAMPLER
         std::vector<VkDescriptorSetLayoutBinding> bindings(1);
         bindings[0].binding = 0;
         bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; // GLSL f.inst "uniform sampler2D tex;"
         bindings[0].descriptorCount = 1;
         bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-#else
-        std::vector<VkDescriptorSetLayoutBinding> bindings(2);
-        bindings[0].binding = 0;
-        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE; // GLSL f.inst "uniform texture2D tex;"
-        bindings[0].descriptorCount = 1;
-        bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        bindings[1].binding = 1;
-        bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER; // GLSL f.inst "uniform sampler smp;"
-        bindings[1].descriptorCount = 1;
-        bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-#endif
 
         VkDescriptorSetLayoutCreateInfo dsl_info {};
         dsl_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -530,17 +776,9 @@ public:
         dsl_info.pBindings = bindings.data();
         vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &dsl);
 
-#if USE_COMBINED_IMAGE_SAMPLER
         std::vector<VkDescriptorPoolSize> pool_size(1);
         pool_size[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         pool_size[0].descriptorCount = 1;
-#else
-        std::vector<VkDescriptorPoolSize> pool_size(2);
-        pool_size[0].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        pool_size[0].descriptorCount = 1;
-        pool_size[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-        pool_size[1].descriptorCount = 1;
-#endif
 
         VkDescriptorPoolCreateInfo pool_info {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -557,10 +795,9 @@ public:
         alloc_info.pSetLayouts = &dsl;
         vkAllocateDescriptorSets(dev, &alloc_info, &ds);
 
-#if USE_COMBINED_IMAGE_SAMPLER
         VkDescriptorImageInfo img_info {
             .sampler = sampler,
-            .imageView = tex_imageview,
+            .imageView = dst_imgv,
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
 
@@ -572,44 +809,14 @@ public:
         wds[0].descriptorCount = 1;
         wds[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         wds[0].pImageInfo = &img_info;
-#else
-        VkDescriptorImageInfo img_info {
-            .sampler = VK_NULL_HANDLE,
-            .imageView = tex_imageview,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        };
-        VkDescriptorImageInfo smp_info {
-            .sampler = sampler,
-            .imageView = VK_NULL_HANDLE,
-            .imageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        };
-        std::vector<VkWriteDescriptorSet> wds(2);
-        wds[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        wds[0].dstSet = ds;
-        wds[0].dstBinding = 0;
-        wds[0].dstArrayElement = 0;
-        wds[0].descriptorCount = 1;
-        wds[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        wds[0].pImageInfo = &img_info;
-        wds[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        wds[1].dstSet = ds;
-        wds[1].dstBinding = 1;
-        wds[1].dstArrayElement = 0;
-        wds[1].descriptorCount = 1;
-        wds[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-        wds[1].pImageInfo = &smp_info;
-#endif
 
         vkUpdateDescriptorSets(dev, wds.size(), wds.data(), 0, nullptr);
     }
     void CreatePipeline() {
         // shaders related blobs
         auto vert_spv = loadSPIRV("simple.vert.spv");
-#if USE_COMBINED_IMAGE_SAMPLER
         auto frag_spv = loadSPIRV("combined_image_sampler.frag.spv");
-#else
-        auto frag_spv = loadSPIRV("separate_image_sampler.frag.spv");
-#endif
+
         VkShaderModule vert, frag;
         VkShaderModuleCreateInfo shader_info {};
         shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -784,7 +991,7 @@ public:
             VkDeviceSize offsets[] { 0 };
             vkCmdBindVertexBuffers(cmdbuf[i], 0, 1, &interleaved_buf, offsets);
             vkCmdBindDescriptorSets(cmdbuf[i], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &ds, 0, nullptr);
-            vkCmdDraw(cmdbuf[i], 3, 1, 0, 0);
+            vkCmdDraw(cmdbuf[i], 6, 1, 0, 0);
             vkCmdEndRenderPass(cmdbuf[i]);
             vkEndCommandBuffer(cmdbuf[i]);
         }
@@ -796,11 +1003,25 @@ public:
             // swapchain, a pool of availabe images, a pool of to be presented images, a presented image
             vkAcquireNextImageKHR(dev, swapchain, UINT64_MAX, image_available_sema, VK_NULL_HANDLE, &image_index);
 
+            {
+                VkSubmitInfo submit_info {};
+                submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+                submit_info.waitSemaphoreCount = 1;
+                submit_info.pWaitSemaphores = &image_available_sema; // application can't submit until it has an available image
+                VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
+                submit_info.commandBufferCount = 1;
+                submit_info.pCommandBuffers = &comp_cmdbuf; // reference to prebuilt commandbuf
+                submit_info.signalSemaphoreCount = 1;
+                submit_info.pSignalSemaphores = &compute_render_finished_sema; // GPU signals that it finishes compute rendering
+                vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+            }
+
             VkSubmitInfo submit_info {};
             submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submit_info.waitSemaphoreCount = 1;
-            submit_info.pWaitSemaphores = &image_available_sema; // application can't submit until it has an available image
-            VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            submit_info.pWaitSemaphores = &compute_render_finished_sema;
+            VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
             submit_info.commandBufferCount = 1;
             submit_info.pCommandBuffers = &cmdbuf[image_index]; // reference to prebuilt commandbuf
@@ -832,22 +1053,33 @@ private:
     std::vector<VkImage> swapchain_images;
     std::vector<VkImageView> swapchain_imageviews;
     VkSemaphore image_available_sema;
+    VkSemaphore compute_render_finished_sema;
     VkSemaphore image_render_finished_sema;
     VkCommandPool cmdpool;
     std::vector<VkCommandBuffer> cmdbuf;
+    VkCommandBuffer comp_cmdbuf;
     VkRenderPass rp;
     std::vector<VkFramebuffer> framebuffers;
     VkBuffer interleaved_buf; // a single buffer holds all the vertex attributes
     VkDeviceMemory interleaved_bufmem;
-    VkImage tex_image;
-    VkDeviceMemory tex_mem;
-    VkImageView tex_imageview;
     VkSampler sampler;
     VkPipelineLayout layout;
     VkPipeline pipeline;
     VkDescriptorSetLayout dsl;
     VkDescriptorPool pool;
     VkDescriptorSet ds;
+    // compute pipeline
+    VkImage src_img;
+    VkImage dst_img;
+    VkDeviceMemory src_mem;
+    VkDeviceMemory dst_mem;
+    VkImageView src_imgv;
+    VkImageView dst_imgv;
+    VkDescriptorSetLayout comp_dsl;
+    VkDescriptorPool comp_ds_pool;
+    VkDescriptorSet comp_ds;
+    VkPipelineLayout comp_layout;
+    VkPipeline comp_pipeline;
 };
 
 int main(int argc, char **argv) {

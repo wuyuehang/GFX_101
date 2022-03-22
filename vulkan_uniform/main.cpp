@@ -71,7 +71,7 @@ public:
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        window = glfwCreateWindow(800, 800, "VertexAttribute", nullptr, nullptr);
+        window = glfwCreateWindow(800, 800, "HelloVulkan", nullptr, nullptr);
     }
     void CreateInstance() {
         // dynamically fetch vulkan function by dlopen libvulkan.
