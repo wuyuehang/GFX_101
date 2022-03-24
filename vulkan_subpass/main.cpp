@@ -568,7 +568,7 @@ public:
             VkDescriptorImageInfo img_info {
             .sampler = sampler,
             .imageView = dsttex.imgv,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
             };
             std::vector<VkWriteDescriptorSet> wds(1);
             wds[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -591,7 +591,7 @@ public:
         att_desc[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         att_desc[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         att_desc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // image layout changes within a render pass witout image memory barrier
-        att_desc[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // ?????? doesn't work ??????
+        att_desc[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL; // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // ?????? doesn't work ??????
 
         att_desc[1].format = VK_FORMAT_B8G8R8A8_SRGB; // same as swapchain
         att_desc[1].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -604,7 +604,7 @@ public:
 
         std::vector<VkAttachmentReference> att_ref(2);
         att_ref[0].attachment = 0;
-        att_ref[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        att_ref[0].layout = VK_IMAGE_LAYOUT_GENERAL;
         att_ref[1].attachment = 1;
         att_ref[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
