@@ -1,5 +1,6 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <array>
 #include <cassert>
 #include <cstring>
 #include <fstream>
@@ -9,15 +10,24 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
 class HelloVulkan {
 public:
+    struct Camera {
+        glm::vec3 eye;
+        glm::vec3 target;
+        glm::vec3 up;
+    };
     HelloVulkan() {
         InitGLFW();
+        InitCamera();
         CreateInstance();
         glfwCreateWindowSurface(instance, window, nullptr, &surface); // create a presentation surface
         CreateDevice();
         CreateSwapchain();
         InitSync();
+        InitDepth();
         CreateCommand();
         CreateRenderPass();
         CreateFramebuffer();
@@ -30,10 +40,14 @@ public:
         vkDeviceWaitIdle(dev);
         vkDestroyPipeline(dev, pipeline, nullptr);
         vkDestroyPipelineLayout(dev, layout, nullptr);
-        vkFreeMemory(dev, uni_bufmem, nullptr);
-        vkDestroyBuffer(dev, uni_buf, nullptr);
+        for (const auto& it : uni_bufmem) {
+            vkFreeMemory(dev, it, nullptr);
+        }
+        for (const auto& it : uni_buf) {
+            vkDestroyBuffer(dev, it, nullptr);
+        }
         vkDestroyDescriptorSetLayout(dev, dsl, nullptr);
-        vkFreeDescriptorSets(dev, pool, 1, &ds);
+        vkFreeDescriptorSets(dev, pool, ds.size(), ds.data());
         vkDestroyDescriptorPool(dev, pool, nullptr);
         vkFreeMemory(dev, index_bufmem, nullptr);
         vkDestroyBuffer(dev, index_buf, nullptr);
@@ -44,6 +58,9 @@ public:
             vkDestroyFramebuffer(dev, it, nullptr);
         }
         vkDestroyRenderPass(dev, rp, nullptr);
+        vkDestroyImageView(dev, depth_imgv, nullptr);
+        vkFreeMemory(dev, depth_mem, nullptr);
+        vkDestroyImage(dev, depth_img, nullptr);
         vkFreeCommandBuffers(dev, cmdpool, cmdbuf.size(), cmdbuf.data());
         vkDestroyCommandPool(dev, cmdpool, nullptr);
         vkDestroySemaphore(dev, image_available_sema, nullptr);
@@ -72,6 +89,13 @@ public:
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window = glfwCreateWindow(800, 800, "HelloVulkan", nullptr, nullptr);
+        glfwSetWindowUserPointer(window, this);
+        glfwSetKeyCallback(window, key_callback);
+    }
+    void InitCamera() {
+        camera.eye = glm::vec3(0.0, 0.0, 5.0);
+        camera.target = glm::vec3(0.0);
+        camera.up = glm::vec3(0.0, 1.0, 0.0);
     }
     void CreateInstance() {
         // dynamically fetch vulkan function by dlopen libvulkan.
@@ -124,6 +148,8 @@ public:
         dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         std::vector<const char *> dev_ext;
         dev_ext.push_back("VK_KHR_swapchain"); // device level extension to enable render onscreen images.
+        //dev_ext.push_back("VK_KHR_create_renderpass2");
+        //dev_ext.push_back("VK_KHR_separate_depth_stencil_layouts");
         dev_info.queueCreateInfoCount = 1;
         dev_info.pQueueCreateInfos = &queue_info;
         dev_info.enabledExtensionCount = dev_ext.size();
@@ -224,31 +250,78 @@ public:
         cmdbuf.resize(swapchain_images.size());
         vkAllocateCommandBuffers(dev, &cmdbuf_info, cmdbuf.data());
     }
-    void CreateRenderPass() {
-        VkAttachmentDescription att_desc {};
-        //att_desc.flags =
-        att_desc.format = VK_FORMAT_B8G8R8A8_SRGB; // same as swapchain
-        att_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-        att_desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        att_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        att_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        att_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        att_desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // image layout changes within a render pass witout image memory barrier
-        att_desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    void InitDepth() {
+        VkImageCreateInfo image_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        image_info.imageType = VK_IMAGE_TYPE_2D;
+        image_info.format = VK_FORMAT_D32_SFLOAT;
+        image_info.extent = VkExtent3D {800, 800, 1};
+        image_info.mipLevels = 1;
+        image_info.arrayLayers = 1;
+        image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+        image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        vkCreateImage(dev, &image_info, nullptr, &depth_img);
 
-        VkAttachmentReference att_ref {};
-        att_ref.attachment = 0;
-        att_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        VkMemoryRequirements img_req {};
+        vkGetImageMemoryRequirements(dev, depth_img, &img_req);
+
+        VkMemoryAllocateInfo img_alloc_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        img_alloc_info.allocationSize = img_req.size;
+        img_alloc_info.memoryTypeIndex = findMemoryType(img_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vkAllocateMemory(dev, &img_alloc_info, nullptr, &depth_mem);
+
+        vkBindImageMemory(dev, depth_img, depth_mem, 0);
+
+        VkImageViewCreateInfo view_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        view_info.image = depth_img;
+        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view_info.format = VK_FORMAT_D32_SFLOAT;
+        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        view_info.subresourceRange.baseMipLevel = 0;
+        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.baseArrayLayer = 0;
+        view_info.subresourceRange.layerCount = 1;
+        vkCreateImageView(dev, &view_info, nullptr, &depth_imgv);
+    }
+    void CreateRenderPass() {
+        std::array<VkAttachmentDescription, 2> att_desc {};
+        att_desc[0].format = VK_FORMAT_B8G8R8A8_SRGB; // same as swapchain
+        att_desc[0].samples = VK_SAMPLE_COUNT_1_BIT;
+        att_desc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        att_desc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        att_desc[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        att_desc[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        att_desc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // image layout changes within a render pass witout image memory barrier
+        att_desc[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        att_desc[1].format = VK_FORMAT_D32_SFLOAT; // depth
+        att_desc[1].samples = VK_SAMPLE_COUNT_1_BIT;
+        att_desc[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        att_desc[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        att_desc[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        att_desc[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        att_desc[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        // If the separateDepthStencilLayouts feature is not enabled, finalLayout must not be VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        // VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, or VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL
+        att_desc[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+
+        std::array<VkAttachmentReference, 2> att_ref {};
+        att_ref[0].attachment = 0;
+        att_ref[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        att_ref[1].attachment = 1;
+        att_ref[1].layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 
         VkSubpassDescription sp_desc {};
         sp_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         sp_desc.colorAttachmentCount = 1;
-        sp_desc.pColorAttachments = &att_ref;
+        sp_desc.pColorAttachments = &att_ref[0];
+        sp_desc.pDepthStencilAttachment = &att_ref[1];
 
         VkRenderPassCreateInfo rp_info {};
         rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        rp_info.attachmentCount = 1;
-        rp_info.pAttachments = &att_desc;
+        rp_info.attachmentCount = att_desc.size();
+        rp_info.pAttachments = att_desc.data();
         rp_info.subpassCount = 1;
         rp_info.pSubpasses = &sp_desc;
 
@@ -258,11 +331,12 @@ public:
         // render pass doesn't specify what images to use
         framebuffers.resize(swapchain_images.size());
         for (uint32_t i = 0; i < swapchain_images.size(); i++) {
+            std::array<VkImageView, 2> attachments { swapchain_imageviews[i], depth_imgv };
             VkFramebufferCreateInfo fb_info {};
             fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             fb_info.renderPass = rp;
-            fb_info.attachmentCount = 1;
-            fb_info.pAttachments = &swapchain_imageviews[i]; // translate imageview(s) to attachment(s)
+            fb_info.attachmentCount = attachments.size();
+            fb_info.pAttachments = attachments.data(); // translate imageview(s) to attachment(s)
             fb_info.width = 800;
             fb_info.height = 800;
             fb_info.layers = 1;
@@ -282,7 +356,7 @@ public:
     }
     void CreateVertexBuffer() {
         {
-            const std::vector<uint16_t> index_data { 0, 1, 2 };
+            const std::vector<uint16_t> index_data { 0, 1, 2, 3, 4, 5, 6, 7, 8, /* x axis */ 9, 10, 11, /* y axis */ 12, 13, 14, /* z axis */ 15, 16, 17 };
             VkBufferCreateInfo ibuf_info {};
             ibuf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             ibuf_info.size = index_data.size()*sizeof(uint16_t);
@@ -307,9 +381,27 @@ public:
             vkUnmapMemory(dev, index_bufmem);
         }
         const std::vector<float> interleaved_vb_data {
-            -1.0, -1.0, 0.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
-            1.0, -1.0, 0.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
-            -1.0, 1.0, 0.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            -1.0, -1.0, 1.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            1.0, -1.0, 1.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            -1.0, 1.0, 1.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            -0.75, -0.75, 0.75, 1.0, /* Position */ 0.0, 0.0, 1.0, 1.0, /* Color */
+            0.75, -0.75, 0.75, 1.0, /* Position */ 0.0, 0.0, 1.0, 1.0, /* Color */
+            -0.75, 0.75, 0.75, 1.0, /* Position */ 0.0, 0.0, 1.0, 1.0, /* Color */
+            -0.5, -0.5, 0.5, 1.0, /* Position */ 0.0, 1.0, 0.0, 1.0, /* Color */
+            0.5, -0.5, 0.5, 1.0, /* Position */ 0.0, 1.0, 0.0, 1.0, /* Color */
+            -0.5, 0.5, 0.5, 1.0, /* Position */ 0.0, 1.0, 0.0, 1.0, /* Color */
+            // local X axis
+            0.0, 0.02, 0.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            0.0, -0.02, 0.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            0.2, -0.02, 0.0, 1.0, /* Position */ 1.0, 0.0, 0.0, 1.0, /* Color */
+            // local y axis
+            0.02, 0.0, 0.0, 1.0, /* Position */ 0.0, 1.0, 0.0, 1.0, /* Color */
+            -0.02, 0.0, 0.0, 1.0, /* Position */ 0.0, 1.0, 0.0, 1.0, /* Color */
+            -0.02, -0.2, 0.0, 1.0, /* Position */ 0.0, 1.0, 0.0, 1.0, /* Color */
+            // local z axis
+            0.0, -0.02, 0.0, 1.0, /* Position */ 0.0, 0.0, 1.0, 1.0, /* Color */
+            0.0, 0.02, 0.0, 1.0, /* Position */ 0.0, 0.0, 1.0, 1.0, /* Color */
+            0.0, -0.02, 0.2, 1.0, /* Position */ 0.0, 0.0, 1.0, 1.0, /* Color */
         };
         VkBuffer interleaved_buf_staging;
         VkDeviceMemory interleaved_bufmem_staging;
@@ -388,32 +480,35 @@ public:
         };
         UBO ubo {};
         ubo.model = glm::mat4(1.0f);
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(camera.eye, camera.target, camera.up);
         ubo.proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 
-        {
+        uni_buf.resize(swapchain_images.size());
+        uni_bufmem.resize(swapchain_images.size());
+
+        for (uint32_t i = 0; i < uni_buf.size(); i++) {
             VkBufferCreateInfo unibuf_info {};
             unibuf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             unibuf_info.size = sizeof(ubo);
             unibuf_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             unibuf_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            vkCreateBuffer(dev, &unibuf_info, nullptr, &uni_buf);
+            vkCreateBuffer(dev, &unibuf_info, nullptr, &uni_buf[i]);
 
             VkMemoryRequirements req {};
-            vkGetBufferMemoryRequirements(dev, uni_buf, &req);
+            vkGetBufferMemoryRequirements(dev, uni_buf[i], &req);
 
             VkMemoryAllocateInfo alloc_info {};
             alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
             alloc_info.allocationSize = req.size;
             alloc_info.memoryTypeIndex = findMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-            vkAllocateMemory(dev, &alloc_info, nullptr, &uni_bufmem);
+            vkAllocateMemory(dev, &alloc_info, nullptr, &uni_bufmem[i]);
 
-            vkBindBufferMemory(dev, uni_buf, uni_bufmem, 0);
+            vkBindBufferMemory(dev, uni_buf[i], uni_bufmem[i], 0);
 
             void *buf_ptr;
-            vkMapMemory(dev, uni_bufmem, 0, unibuf_info.size, 0, &buf_ptr);
+            vkMapMemory(dev, uni_bufmem[i], 0, unibuf_info.size, 0, &buf_ptr);
             memcpy(buf_ptr, &ubo, unibuf_info.size);
-            vkUnmapMemory(dev, uni_bufmem);
+            vkUnmapMemory(dev, uni_bufmem[i]);
         }
         std::vector<VkDescriptorSetLayoutBinding> bindings(1);
         bindings[0].binding = 0;
@@ -427,41 +522,45 @@ public:
         dsl_info.pBindings = bindings.data();
         vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &dsl);
 
+        ds.resize(swapchain_images.size());
+
         VkDescriptorPoolSize pool_size {};
         pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        pool_size.descriptorCount = 1;
+        pool_size.descriptorCount = ds.size();
 
         VkDescriptorPoolCreateInfo pool_info {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        pool_info.maxSets = 1;
+        pool_info.maxSets = ds.size();
         pool_info.poolSizeCount = 1;
         pool_info.pPoolSizes = &pool_size;
         vkCreateDescriptorPool(dev, &pool_info, nullptr, &pool);
 
-        VkDescriptorSetAllocateInfo alloc_info {};
-        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        alloc_info.descriptorPool = pool;
-        alloc_info.descriptorSetCount = 1;
-        alloc_info.pSetLayouts = &dsl;
-        vkAllocateDescriptorSets(dev, &alloc_info, &ds);
+        for (uint32_t i = 0; i < ds.size(); i++) {
+            VkDescriptorSetAllocateInfo alloc_info {};
+            alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            alloc_info.descriptorPool = pool;
+            alloc_info.descriptorSetCount = 1;
+            alloc_info.pSetLayouts = &dsl;
+            vkAllocateDescriptorSets(dev, &alloc_info, &ds[i]);
 
-        VkDescriptorBufferInfo buf_info {
-            .buffer = uni_buf,
-            .offset = 0,
-            .range = sizeof(ubo),
-        };
+            VkDescriptorBufferInfo buf_info {
+                .buffer = uni_buf[i],
+                .offset = 0,
+                .range = sizeof(ubo),
+            };
 
-        VkWriteDescriptorSet write {};
-        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = ds;
-        write.dstBinding = 0;
-        write.dstArrayElement = 0;
-        write.descriptorCount = 1;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write.pBufferInfo = &buf_info;
+            VkWriteDescriptorSet write {};
+            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write.dstSet = ds[i];
+            write.dstBinding = 0;
+            write.dstArrayElement = 0;
+            write.descriptorCount = 1;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            write.pBufferInfo = &buf_info;
 
-        vkUpdateDescriptorSets(dev, 1, &write, 0, nullptr);
+            vkUpdateDescriptorSets(dev, 1, &write, 0, nullptr);
+        }
     }
     void CreatePipeline() {
         // shaders related blobs
@@ -579,6 +678,12 @@ public:
             .alphaToOneEnable = VK_FALSE,
         };
 
+        // depth stencil
+        VkPipelineDepthStencilStateCreateInfo ds_state { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+        ds_state.depthTestEnable = VK_TRUE;
+        ds_state.depthWriteEnable = VK_TRUE;
+        ds_state.depthCompareOp = VK_COMPARE_OP_LESS;
+
         // color blend
         // if renderPass is not VK_NULL_HANDLE, the pipeline is being created with fragment output interface state,
         // and subpass uses color attachments, pColorBlendState must be a valid pointer to a valid
@@ -610,7 +715,7 @@ public:
         pipeline_info.pViewportState = &vp_state;
         pipeline_info.pRasterizationState = &rs_state;
         pipeline_info.pMultisampleState = &ms_state;
-        pipeline_info.pDepthStencilState = nullptr;
+        pipeline_info.pDepthStencilState = &ds_state;
         pipeline_info.pColorBlendState = &blend_state;
         pipeline_info.pDynamicState = nullptr;
         pipeline_info.layout = layout;
@@ -632,17 +737,18 @@ public:
             begin_renderpass_info.framebuffer = framebuffers[i];
             begin_renderpass_info.renderArea.extent = VkExtent2D { 800, 800 };
             begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
-            begin_renderpass_info.clearValueCount = 1;
-            VkClearValue clear_value;
-            clear_value.color = VkClearColorValue{ 0.01, 0.02, 0.03, 1.0 };
-            begin_renderpass_info.pClearValues = &clear_value;
+            std::array<VkClearValue, 2> clear_value {};
+            clear_value[0].color = VkClearColorValue{ 0.01, 0.02, 0.03, 1.0 };
+            clear_value[1].depthStencil.depth = 1.0;
+            begin_renderpass_info.clearValueCount = clear_value.size();
+            begin_renderpass_info.pClearValues = clear_value.data();
             vkCmdBeginRenderPass(cmdbuf[i], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
             vkCmdBindPipeline(cmdbuf[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
             vkCmdBindIndexBuffer(cmdbuf[i], index_buf, 0, VK_INDEX_TYPE_UINT16);
             VkDeviceSize offsets[] { 0 };
             vkCmdBindVertexBuffers(cmdbuf[i], 0, 1, &interleaved_buf, offsets);
-            vkCmdBindDescriptorSets(cmdbuf[i], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &ds, 0, nullptr);
-            vkCmdDrawIndexed(cmdbuf[i], 3, 1, 0, 0, 0);//vkCmdDraw(cmdbuf[i], 3, 1, 0, 0);
+            vkCmdBindDescriptorSets(cmdbuf[i], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &ds[i], 0, nullptr);
+            vkCmdDrawIndexed(cmdbuf[i], 18, 1, 0, 0, 0);
             vkCmdEndRenderPass(cmdbuf[i]);
             vkEndCommandBuffer(cmdbuf[i]);
         }
@@ -653,6 +759,23 @@ public:
             // application / swapchain / presenter (display)
             // swapchain, a pool of availabe images, a pool of to be presented images, a presented image
             vkAcquireNextImageKHR(dev, swapchain, UINT64_MAX, image_available_sema, VK_NULL_HANDLE, &image_index);
+
+            {
+                struct UBO {
+                    glm::mat4 model;
+                    glm::mat4 view;
+                    glm::mat4 proj;
+                };
+                UBO ubo {};
+                ubo.model = glm::mat4(1.0f);
+                ubo.view = glm::lookAt(camera.eye, camera.target, camera.up);
+                ubo.proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+
+                void *buf_ptr;
+                vkMapMemory(dev, uni_bufmem[image_index], 0, sizeof(ubo), 0, &buf_ptr);
+                memcpy(buf_ptr, &ubo, sizeof(ubo));
+                vkUnmapMemory(dev, uni_bufmem[image_index]);
+            }
 
             VkSubmitInfo submit_info {};
             submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -701,12 +824,49 @@ private:
     VkDeviceMemory index_bufmem;
     VkPipelineLayout layout;
     VkPipeline pipeline;
-    VkBuffer uni_buf;
-    VkDeviceMemory uni_bufmem;
+    std::vector<VkBuffer> uni_buf;
+    std::vector<VkDeviceMemory> uni_bufmem;
     VkDescriptorSetLayout dsl;
     VkDescriptorPool pool;
-    VkDescriptorSet ds;
+    std::vector<VkDescriptorSet> ds;
+    VkImage depth_img;
+    VkImageView depth_imgv;
+    VkDeviceMemory depth_mem;
+public:
+    struct Camera camera;
 };
+
+// It only illustrates how to pass class object pointer to glfw callback
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    HelloVulkan *hello_vk = static_cast<HelloVulkan*>(glfwGetWindowUserPointer(window));
+    struct HelloVulkan::Camera & camera = hello_vk->camera;
+    static float curr_time = 0.0;
+    static float last_time = 0.0;
+
+    curr_time = glfwGetTime();
+    float delta = curr_time - last_time;
+    last_time = curr_time;
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+
+    float cameraSpeed = 1.5;// * delta;
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        camera.eye += cameraSpeed * glm::normalize(camera.target - camera.eye);
+    } else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        camera.eye -= cameraSpeed * glm::normalize(camera.target - camera.eye);
+    } else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        camera.eye -= cameraSpeed * glm::normalize(glm::cross(camera.target - camera.eye, camera.up));
+    } else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        camera.eye += cameraSpeed * glm::normalize(glm::cross(camera.target - camera.eye, camera.up));
+    } else if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        camera.eye = glm::vec3(0.0, 0.0, 5.0);
+        camera.target = glm::vec3(0.0);
+        camera.up = glm::vec3(0.0, 1.0, 0.0);
+    }
+}
 
 int main(int argc, char **argv) {
     HelloVulkan demo;
