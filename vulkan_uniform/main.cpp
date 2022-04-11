@@ -10,18 +10,25 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#define USE_GLFW_CALLBACK 0
+
+#if USE_GLFW_CALLBACK
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+#endif
 
 class HelloVulkan {
 public:
     struct Camera {
         glm::vec3 eye;
-        glm::vec3 target;
+        glm::vec3 front;
         glm::vec3 up;
+        float fov;
+        float ratio;
+        float near;
+        float far;
     };
     HelloVulkan() {
         InitGLFW();
-        InitCamera();
         CreateInstance();
         glfwCreateWindowSurface(instance, window, nullptr, &surface); // create a presentation surface
         CreateDevice();
@@ -89,13 +96,10 @@ public:
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window = glfwCreateWindow(800, 800, "HelloVulkan", nullptr, nullptr);
+#if USE_GLFW_CALLBACK
         glfwSetWindowUserPointer(window, this);
         glfwSetKeyCallback(window, key_callback);
-    }
-    void InitCamera() {
-        camera.eye = glm::vec3(0.0, 0.0, 5.0);
-        camera.target = glm::vec3(0.0);
-        camera.up = glm::vec3(0.0, 1.0, 0.0);
+#endif
     }
     void CreateInstance() {
         // dynamically fetch vulkan function by dlopen libvulkan.
@@ -480,8 +484,6 @@ public:
         };
         UBO ubo {};
         ubo.model = glm::mat4(1.0f);
-        ubo.view = glm::lookAt(camera.eye, camera.target, camera.up);
-        ubo.proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 
         uni_buf.resize(swapchain_images.size());
         uni_bufmem.resize(swapchain_images.size());
@@ -753,6 +755,85 @@ public:
             vkEndCommandBuffer(cmdbuf[i]);
         }
     }
+    void HandleInput() {
+        static bool init_control_system = false;
+        static float curr_time, last_time;
+        float delta;
+        static double curr_pitch, curr_yaw;
+        static double xpos, ypos, last_xpos, last_ypos;
+        static bool start = false;
+
+        if (!init_control_system) {
+            camera.eye = glm::vec3(0.0, 0.0, 15.0);
+            camera.up = glm::vec3(0.0, 1.0, 0.0);
+            camera.front = glm::vec3(0.0, 0.0, -10000.0) - camera.eye;
+
+            camera.fov = 45.0;
+            camera.ratio = 1.0;
+            camera.near = 0.1;
+            camera.far = 100.0;
+
+            curr_pitch = 0.0;
+            curr_yaw = 180.0; // looking at negative Z axis
+            xpos = 0.0;
+            ypos = 0.0;
+            last_xpos = 0.0;
+            last_ypos = 0.0;
+            start = false;
+
+            curr_time = 0.0;
+            last_time = 0.0;
+            init_control_system = true;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+
+        {
+            curr_time = glfwGetTime();
+            delta = curr_time - last_time;
+            last_time = curr_time;
+        }
+
+        float cameraSpeed = 2.75 * delta;
+        float mouseSpeed = 2.75 * delta;
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            glfwGetCursorPos(window, &xpos, &ypos);
+
+            if (!start) { // when press first time, we update last x/y position only.
+                last_xpos = xpos;
+                last_ypos = ypos;
+                start = true;
+            } else { // when enter again, we calculate the yaw and pitch.
+                curr_yaw += mouseSpeed * (xpos - last_xpos);
+                curr_pitch += mouseSpeed * (ypos - last_ypos);
+                last_xpos = xpos;
+                last_ypos = ypos;
+            }
+        } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+            start = false; // when release, we flag the ending.
+        }
+
+        camera.front = glm::vec3(
+            cos(glm::radians(curr_pitch)) * sin(glm::radians(curr_yaw)),
+            sin(glm::radians(curr_pitch)),
+            cos(glm::radians(curr_pitch)) * cos(glm::radians(curr_yaw))
+        );
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            camera.eye += cameraSpeed * glm::normalize(camera.front);
+        } else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            camera.eye -= cameraSpeed * glm::normalize(camera.front);
+        } else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            camera.eye -= cameraSpeed * glm::normalize(glm::cross(camera.front, camera.up));
+        } else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            camera.eye += cameraSpeed * glm::normalize(glm::cross(camera.front, camera.up));
+        } else if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            init_control_system = false;
+        }
+    }
     void Gameloop() {
         uint32_t image_index;
         while (!glfwWindowShouldClose(window)) {
@@ -760,6 +841,7 @@ public:
             // swapchain, a pool of availabe images, a pool of to be presented images, a presented image
             vkAcquireNextImageKHR(dev, swapchain, UINT64_MAX, image_available_sema, VK_NULL_HANDLE, &image_index);
 
+            HandleInput();
             {
                 struct UBO {
                     glm::mat4 model;
@@ -768,8 +850,8 @@ public:
                 };
                 UBO ubo {};
                 ubo.model = glm::mat4(1.0f);
-                ubo.view = glm::lookAt(camera.eye, camera.target, camera.up);
-                ubo.proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+                ubo.view = glm::lookAt(camera.eye, camera.front + camera.eye, camera.up);
+                ubo.proj = glm::perspective(glm::radians(camera.fov), camera.ratio, camera.near, camera.far);
 
                 void *buf_ptr;
                 vkMapMemory(dev, uni_bufmem[image_index], 0, sizeof(ubo), 0, &buf_ptr);
@@ -836,6 +918,7 @@ public:
     struct Camera camera;
 };
 
+#if USE_GLFW_CALLBACK
 // It only illustrates how to pass class object pointer to glfw callback
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     HelloVulkan *hello_vk = static_cast<HelloVulkan*>(glfwGetWindowUserPointer(window));
@@ -867,6 +950,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         camera.up = glm::vec3(0.0, 1.0, 0.0);
     }
 }
+#endif
 
 int main(int argc, char **argv) {
     HelloVulkan demo;
