@@ -11,6 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #define USE_GLFW_CALLBACK 0
+#define USE_FULLSCREEN 1
 
 #if USE_GLFW_CALLBACK
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -95,7 +96,16 @@ public:
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+#if USE_FULLSCREEN
+        GLFWmonitor *prim = glfwGetPrimaryMonitor();
+        const GLFWvidmode *mode = glfwGetVideoMode(prim);
+        w = mode->width;
+        h = mode->height;
+        window = glfwCreateWindow(w, h, "HelloVulkan", prim, nullptr);
+        glfwSetWindowMonitor(window, prim, 0, 0, w, h, mode->refreshRate);
+#else
         window = glfwCreateWindow(800, 800, "HelloVulkan", nullptr, nullptr);
+#endif
 #if USE_GLFW_CALLBACK
         glfwSetWindowUserPointer(window, this);
         glfwSetKeyCallback(window, key_callback);
@@ -258,7 +268,11 @@ public:
         VkImageCreateInfo image_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
         image_info.imageType = VK_IMAGE_TYPE_2D;
         image_info.format = VK_FORMAT_D32_SFLOAT;
+#if USE_FULLSCREEN
+        image_info.extent = VkExtent3D { static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1 };
+#else
         image_info.extent = VkExtent3D {800, 800, 1};
+#endif
         image_info.mipLevels = 1;
         image_info.arrayLayers = 1;
         image_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -341,8 +355,13 @@ public:
             fb_info.renderPass = rp;
             fb_info.attachmentCount = attachments.size();
             fb_info.pAttachments = attachments.data(); // translate imageview(s) to attachment(s)
+#if USE_FULLSCREEN
+            fb_info.width = w;
+            fb_info.height = h;
+#else
             fb_info.width = 800;
             fb_info.height = 800;
+#endif
             fb_info.layers = 1;
             vkCreateFramebuffer(dev, &fb_info, nullptr, &framebuffers[i]);
         }
@@ -632,14 +651,23 @@ public:
         VkViewport vp {
             .x = 0,
             .y = 0,
+#if USE_FULLSCREEN
+            .width = (float)w,
+            .height = (float)h,
+#else
             .width = 800,
             .height = 800,
+#endif
             .minDepth = 0.0,
             .maxDepth = 1.0,
         };
         VkRect2D scissor {};
         scissor.offset = VkOffset2D { 0, 0 };
+#if USE_FULLSCREEN
+        scissor.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+#else
         scissor.extent = VkExtent2D { 800, 800 };
+#endif
         VkPipelineViewportStateCreateInfo vp_state {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
             .pNext = nullptr,
@@ -737,7 +765,11 @@ public:
             begin_renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             begin_renderpass_info.renderPass = rp;
             begin_renderpass_info.framebuffer = framebuffers[i];
+#if USE_FULLSCREEN
+            begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+#else
             begin_renderpass_info.renderArea.extent = VkExtent2D { 800, 800 };
+#endif
             begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
             std::array<VkClearValue, 2> clear_value {};
             clear_value[0].color = VkClearColorValue{ 0.01, 0.02, 0.03, 1.0 };
@@ -884,6 +916,10 @@ public:
     }
 private:
     GLFWwindow *window;
+#if USE_FULLSCREEN
+    int32_t w;
+    int32_t h;
+#endif
     VkInstance instance;
     VkSurfaceKHR surface;
     VkPhysicalDevice pdev;
