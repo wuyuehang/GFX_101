@@ -1,2 +1,3 @@
 *.spv
 main
+*.o
