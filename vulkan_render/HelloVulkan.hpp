@@ -17,6 +17,16 @@ class VulkanSwapchain;
 
 class HelloVulkan {
 public:
+    struct VulkanPipe {
+        VkDescriptorPool pool;
+        std::vector<VkDescriptorSet> ds;
+        /* A blueprint describes the shader binding layout (without actually referencing descriptor)
+         * can be used with different descriptor sets as long as their layout matches
+         */
+        VkDescriptorSetLayout dsl;
+        VkPipelineLayout pipeline_layout;
+        VkPipeline pipeline;
+    };
     HelloVulkan();
     ~HelloVulkan();
     void InitGLFW() {
@@ -106,9 +116,17 @@ public:
     void CreateRenderPass();
     void CreateFramebuffer();
     void CreateResource();
-    void CreateDescriptorSetLayout();
-    void CreateDescriptorSet();
-    void CreatePipeline();
+    /* default pipleine */
+    void bake_default_DescriptorSetLayout();
+    void bake_default_DescriptorSet();
+    void bake_default_Pipeline();
+    void clean_VulkanPipe(VulkanPipe p) {
+        vkDestroyPipeline(dev, p.pipeline, nullptr);
+        vkDestroyPipelineLayout(dev, p.pipeline_layout, nullptr);
+        vkDestroyDescriptorSetLayout(dev, p.dsl, nullptr);
+        vkFreeDescriptorSets(dev, p.pool, p.ds.size(), p.ds.data());
+        vkDestroyDescriptorPool(dev, p.pool, nullptr);
+    }
     void BakeCommand(uint32_t frame_nr);
     void HandleInput();
     void Gameloop();
@@ -138,14 +156,8 @@ private:
     std::vector<VkCommandBuffer> cmdbuf;
     VkRenderPass rp;
     std::vector<VkFramebuffer> framebuffers;
-    VkPipelineLayout layout;
-    VkPipeline pipeline;
-    /* A blueprint describes the shader binding layout (without actually referencing descriptor)
-     * can be used with different descriptor sets as long as their layout matches
-     */
-    VkDescriptorSetLayout dsl;
-    VkDescriptorPool pool;
-    std::vector<VkDescriptorSet> ds;
+
+    VulkanPipe default_pipe;
     BufferObj *index;
     BufferObj *vertex;
     std::vector<BufferObj *> uniform;

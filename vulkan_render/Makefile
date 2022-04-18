@@ -10,6 +10,7 @@ binary = main
 obj = main.o \
 	trackball.o \
 	Controller.o \
+	Default.o \
 	HelloVulkan.o \
 	VulkanCommon.o \
 	VulkanSwapchain.o
