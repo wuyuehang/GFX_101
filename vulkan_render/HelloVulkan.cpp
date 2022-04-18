@@ -25,10 +25,16 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
         bake_default_DescriptorSet();
         bake_default_Pipeline();
     }
+    {
+        bake_wireframe_DescriptorSetLayout();
+        bake_wireframe_DescriptorSet();
+        bake_wireframe_Pipeline();
+    }
 }
 
 HelloVulkan::~HelloVulkan() {
     vkDeviceWaitIdle(dev);
+    clean_VulkanPipe(wireframe_pipe);
     clean_VulkanPipe(default_pipe);
 
     for (const auto& it : uniform) {
@@ -189,7 +195,7 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
     begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
 
     std::array<VkClearValue, 2> clear_value {};
-    clear_value[0].color = VkClearColorValue{ 0.01, 0.02, 0.03, 1.0 };
+    clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
     clear_value[1].depthStencil.depth = 1.0;
     begin_renderpass_info.clearValueCount = clear_value.size();
     begin_renderpass_info.pClearValues = clear_value.data();

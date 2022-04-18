@@ -120,6 +120,10 @@ public:
     void bake_default_DescriptorSetLayout();
     void bake_default_DescriptorSet();
     void bake_default_Pipeline();
+    /* wireframe pipeline */
+    void bake_wireframe_DescriptorSetLayout();
+    void bake_wireframe_DescriptorSet();
+    void bake_wireframe_Pipeline();
     void clean_VulkanPipe(VulkanPipe p) {
         vkDestroyPipeline(dev, p.pipeline, nullptr);
         vkDestroyPipelineLayout(dev, p.pipeline_layout, nullptr);
@@ -158,6 +162,7 @@ private:
     std::vector<VkFramebuffer> framebuffers;
 
     VulkanPipe default_pipe;
+    VulkanPipe wireframe_pipe;
     BufferObj *index;
     BufferObj *vertex;
     std::vector<BufferObj *> uniform;

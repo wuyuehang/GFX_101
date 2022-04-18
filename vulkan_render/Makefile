@@ -13,7 +13,8 @@ obj = main.o \
 	Default.o \
 	HelloVulkan.o \
 	VulkanCommon.o \
-	VulkanSwapchain.o
+	VulkanSwapchain.o \
+	Wireframe.o
 
 all: $(binary)
 
@@ -25,7 +26,9 @@ main : $(obj)
 
 spv :
 	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert.glsl -o simple.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V wireframe.vert.glsl -o wireframe.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V combined_image_sampler.frag.glsl -o combined_image_sampler.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V wireframe.frag.glsl -o wireframe.frag.spv
 
 clean:
 	rm -rf $(binary) $(obj)
