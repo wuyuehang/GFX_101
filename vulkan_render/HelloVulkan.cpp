@@ -4,16 +4,18 @@
 #if 0
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new FPSController(this)) {
 #else
-HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)) {
+HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)), m_current_frame(0) {
 #endif
     InitGLFW();
     CreateInstance();
     CreateDevice();
-    InitSync();
     vulkan_swapchain.init();
-    depth = new ImageObj(this);
-    depth->init(VkExtent3D { static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1 }, VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+    InitSync();
+    {
+        depth = new ImageObj(this);
+        depth->init(VkExtent3D { static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1 }, VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+    }
     CreateCommand();
     CreateRenderPass();
     CreateFramebuffer();
@@ -21,7 +23,6 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
     CreateDescriptorSetLayout();
     CreateDescriptorSet();
     CreatePipeline();
-    BakeCommand();
 }
 
 HelloVulkan::~HelloVulkan() {
@@ -50,8 +51,11 @@ HelloVulkan::~HelloVulkan() {
     vkFreeCommandBuffers(dev, cmdpool, 1, &transfer_cmdbuf);
     vkFreeCommandBuffers(dev, cmdpool, cmdbuf.size(), cmdbuf.data());
     vkDestroyCommandPool(dev, cmdpool, nullptr);
-    vkDestroySemaphore(dev, image_available_sema, nullptr);
-    vkDestroySemaphore(dev, image_render_finished_sema, nullptr);
+    for (auto i = 0; i < m_max_inflight_frames; i++) {
+        vkDestroySemaphore(dev, image_available[i], nullptr);
+        vkDestroySemaphore(dev, image_render_finished[i], nullptr);
+        vkDestroyFence(dev, fence[i], nullptr);
+    }
     vulkan_swapchain.deinit();
     vkDestroyDevice(dev, nullptr);
     vkDestroyInstance(instance, nullptr);
@@ -61,16 +65,17 @@ HelloVulkan::~HelloVulkan() {
 }
 
 void HelloVulkan::CreateCommand() {
+    assert(m_max_inflight_frames != 0);
     VkCommandPoolCreateInfo commandpool_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     commandpool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     commandpool_info.queueFamilyIndex = q_family_index;
     vkCreateCommandPool(dev, &commandpool_info, nullptr, &cmdpool);
 
+    cmdbuf.resize(m_max_inflight_frames);
     VkCommandBufferAllocateInfo cmdbuf_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
     cmdbuf_info.commandPool = cmdpool;
     cmdbuf_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cmdbuf_info.commandBufferCount = vulkan_swapchain.images.size();
-    cmdbuf.resize(vulkan_swapchain.images.size());
+    cmdbuf_info.commandBufferCount = m_max_inflight_frames;
     vkAllocateCommandBuffers(dev, &cmdbuf_info, cmdbuf.data());
 
     cmdbuf_info.commandPool = cmdpool;
@@ -161,7 +166,7 @@ void HelloVulkan::CreateResource() {
     vertex->upload(interleaved_vb_data.data(), interleaved_vb_data.size() * sizeof(float));
 
     // UNIFORM
-    uniform.resize(vulkan_swapchain.images.size());
+    uniform.resize(m_max_inflight_frames);
 
     for (uint32_t i = 0; i < uniform.size(); i++) {
         uniform[i] = new BufferObj(this);
@@ -193,7 +198,7 @@ void HelloVulkan::CreateDescriptorSetLayout() {
 }
 
 void HelloVulkan::CreateDescriptorSet() {
-    ds.resize(vulkan_swapchain.images.size());
+    ds.resize(m_max_inflight_frames);
 
     std::vector<VkDescriptorPoolSize> pool_size(2);
     pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -417,41 +422,42 @@ void HelloVulkan::CreatePipeline() {
     vkDestroyShaderModule(dev, frag, nullptr);
 }
 
-void HelloVulkan::BakeCommand() {
-    for (uint32_t i = 0; i < cmdbuf.size(); i++) {
-        VkCommandBufferBeginInfo cmdbuf_begin_info {};
-        cmdbuf_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        vkBeginCommandBuffer(cmdbuf[i], &cmdbuf_begin_info);
-        VkRenderPassBeginInfo begin_renderpass_info {};
-        begin_renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        begin_renderpass_info.renderPass = rp;
-        begin_renderpass_info.framebuffer = framebuffers[i];
-        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
-        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
-        std::array<VkClearValue, 2> clear_value {};
-        clear_value[0].color = VkClearColorValue{ 0.01, 0.02, 0.03, 1.0 };
-        clear_value[1].depthStencil.depth = 1.0;
-        begin_renderpass_info.clearValueCount = clear_value.size();
-        begin_renderpass_info.pClearValues = clear_value.data();
-        vkCmdBeginRenderPass(cmdbuf[i], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(cmdbuf[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-        vkCmdBindIndexBuffer(cmdbuf[i], index->get_buffer(), 0, VK_INDEX_TYPE_UINT16);
-        VkDeviceSize offsets[] { 0 };
-        vkCmdBindVertexBuffers(cmdbuf[i], 0, 1, &vertex->get_buffer(), offsets);
-        vkCmdBindDescriptorSets(cmdbuf[i], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &ds[i], 0, nullptr);
-        vkCmdDrawIndexed(cmdbuf[i], 9, 1, 0, 0, 0);
-        vkCmdEndRenderPass(cmdbuf[i]);
-        vkEndCommandBuffer(cmdbuf[i]);
-    }
+void HelloVulkan::BakeCommand(uint32_t frame_nr) {
+    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
+
+    VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+    begin_renderpass_info.renderPass = rp;
+    begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+    begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+    begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+
+    std::array<VkClearValue, 2> clear_value {};
+    clear_value[0].color = VkClearColorValue{ 0.01, 0.02, 0.03, 1.0 };
+    clear_value[1].depthStencil.depth = 1.0;
+    begin_renderpass_info.clearValueCount = clear_value.size();
+    begin_renderpass_info.pClearValues = clear_value.data();
+
+    vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdBindIndexBuffer(cmdbuf[frame_nr], index->get_buffer(), 0, VK_INDEX_TYPE_UINT16);
+    VkDeviceSize offsets[] { 0 };
+    vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &vertex->get_buffer(), offsets);
+    vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &ds[frame_nr], 0, nullptr);
+    vkCmdDrawIndexed(cmdbuf[frame_nr], 9, 1, 0, 0, 0);
+    vkCmdEndRenderPass(cmdbuf[frame_nr]);
+    vkEndCommandBuffer(cmdbuf[frame_nr]);
 }
 
 void HelloVulkan::Gameloop() {
-    uint32_t image_index;
     while (!glfwWindowShouldClose(window)) {
+        vkWaitForFences(dev, 1, &fence[m_current_frame], VK_TRUE, UINT64_MAX);
+
         // application / swapchain / presenter (display)
         // swapchain, a pool of availabe images, a pool of to be presented images, a presented image
-        vkAcquireNextImageKHR(dev, vulkan_swapchain.swapchain, UINT64_MAX, image_available_sema, VK_NULL_HANDLE, &image_index);
+        uint32_t image_index;
+        vkAcquireNextImageKHR(dev, vulkan_swapchain.swapchain, UINT64_MAX, image_available[m_current_frame], VK_NULL_HANDLE, &image_index);
 
         ctrl->handle_input();
         {
@@ -465,27 +471,30 @@ void HelloVulkan::Gameloop() {
             memcpy(buf_ptr, &ubo, sizeof(ubo));
             vkUnmapMemory(dev, uniform[image_index]->get_memory());
         }
+        BakeCommand(m_current_frame);
 
-        VkSubmitInfo submit_info {};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        vkResetFences(dev, 1, &fence[m_current_frame]);
+
+        VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
         submit_info.waitSemaphoreCount = 1;
-        submit_info.pWaitSemaphores = &image_available_sema; // application can't submit until it has an available image
+        submit_info.pWaitSemaphores = &image_available[m_current_frame]; // application can't submit until it has an available image
         VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
         submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &cmdbuf[image_index]; // reference to prebuilt commandbuf
         submit_info.signalSemaphoreCount = 1;
-        submit_info.pSignalSemaphores = &image_render_finished_sema; // GPU signals that it finishes rendering
-        vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+        submit_info.pSignalSemaphores = &image_render_finished[m_current_frame]; // GPU signals that it finishes rendering
+        vkQueueSubmit(queue, 1, &submit_info, fence[m_current_frame]); // to signal CPU (host) that it finishes rendering, so that command buffer can be rebuilt.
 
-        VkPresentInfoKHR present_info {};
-        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        VkPresentInfoKHR present_info { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
         present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &image_render_finished_sema; // application can't present until it finished rendering
+        present_info.pWaitSemaphores = &image_render_finished[m_current_frame]; // application can't present until it finished rendering
         present_info.swapchainCount = 1;
         present_info.pSwapchains = &vulkan_swapchain.swapchain;
         present_info.pImageIndices = &image_index;
         vkQueuePresentKHR(queue, &present_info);
+
+        m_current_frame = (m_current_frame + 1) % m_max_inflight_frames;
         glfwPollEvents();
     }
 }

@@ -87,9 +87,20 @@ public:
         vkGetPhysicalDeviceMemoryProperties(pdev, &mem_properties);
     }
     void InitSync() {
+        m_max_inflight_frames = vulkan_swapchain.images.size();
         VkSemaphoreCreateInfo sema_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-        vkCreateSemaphore(dev, &sema_info, nullptr, &image_available_sema);
-        vkCreateSemaphore(dev, &sema_info, nullptr, &image_render_finished_sema);
+        VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // mark as signed upon creation
+
+        image_available.resize(m_max_inflight_frames);
+        image_render_finished.resize(m_max_inflight_frames);
+        fence.resize(m_max_inflight_frames);
+
+        for (auto i = 0; i < m_max_inflight_frames; i++) {
+            vkCreateSemaphore(dev, &sema_info, nullptr, &image_available[i]);
+            vkCreateSemaphore(dev, &sema_info, nullptr, &image_render_finished[i]);
+            vkCreateFence(dev, &fence_info, nullptr, &fence[i]);
+        }
     }
     void CreateCommand();
     void CreateRenderPass();
@@ -98,7 +109,7 @@ public:
     void CreateDescriptorSetLayout();
     void CreateDescriptorSet();
     void CreatePipeline();
-    void BakeCommand();
+    void BakeCommand(uint32_t frame_nr);
     void HandleInput();
     void Gameloop();
 
@@ -117,8 +128,12 @@ private:
     Controller *ctrl;
     VulkanSwapchain vulkan_swapchain;
     uint32_t q_family_index;
-    VkSemaphore image_available_sema;
-    VkSemaphore image_render_finished_sema;
+    uint32_t m_max_inflight_frames;
+    uint32_t m_current_frame;
+    /* sync objects */
+    std::vector<VkSemaphore> image_available;
+    std::vector<VkSemaphore> image_render_finished;
+    std::vector<VkFence> fence;
     VkCommandPool cmdpool;
     std::vector<VkCommandBuffer> cmdbuf;
     VkRenderPass rp;
