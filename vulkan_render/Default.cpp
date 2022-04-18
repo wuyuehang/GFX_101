@@ -66,10 +66,10 @@ void HelloVulkan::bake_default_DescriptorSet() {
     sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    vkCreateSampler(dev, &sampler_info, nullptr, &sampler);
+    vkCreateSampler(dev, &sampler_info, nullptr, &default_sampler);
     VkDescriptorImageInfo img_info {
-        .sampler = sampler,
-        .imageView = tex->get_image_view(),
+        .sampler = default_sampler,
+        .imageView = default_tex->get_image_view(),
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
 
@@ -105,18 +105,22 @@ void HelloVulkan::bake_default_Pipeline() {
     // vertex input
     std::vector<VkVertexInputBindingDescription> vbd(1);
     vbd[0].binding = 0;
-    vbd[0].stride = 6 * sizeof(float);
+    vbd[0].stride = sizeof(Mesh::Vertex);
     vbd[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    std::vector<VkVertexInputAttributeDescription> ad(2);
-    ad[0].location = 0; // Position
-    ad[0].binding = 0; // single vertex attribute buffer
-    ad[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    ad[0].offset = 0;
-    ad[1].location = 1; // UV
+    std::array<VkVertexInputAttributeDescription, 3> ad;
+    ad[0].location = 0; // Position.xyz
+    ad[0].binding = 0;
+    ad[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    ad[0].offset = offsetof(Mesh::Vertex, pos);
+    ad[1].location = 1; // Normal.xyz
     ad[1].binding = 0;
-    ad[1].format = VK_FORMAT_R32G32_SFLOAT;
-    ad[1].offset = 4 * sizeof(float);
+    ad[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    ad[1].offset = offsetof(Mesh::Vertex, nor);
+    ad[2].location = 2; // UV.xy
+    ad[2].binding = 0;
+    ad[2].format = VK_FORMAT_R32G32_SFLOAT;
+    ad[2].offset = offsetof(Mesh::Vertex, uv);
 
     VkPipelineVertexInputStateCreateInfo vert_input_state {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,

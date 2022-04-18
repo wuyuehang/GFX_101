@@ -230,7 +230,8 @@ void ImageObj::bake(const std::string filename) {
         .imageOffset = VkOffset3D {},
         .imageExtent = VkExtent3D { (uint32_t)w, (uint32_t)h, 1 },
     };
-    this->upload(ptr, sizeof(uint8_t)*w*h*c, range, region);
+    // Currently, only support 4 channels format, so that make the larger size than usual to satisify buffer to image blit
+    this->upload(ptr, sizeof(uint8_t)*w*h*4, range, region);
 
     SOIL_free_image_data(ptr);
 }

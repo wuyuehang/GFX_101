@@ -8,10 +8,12 @@ LDFLAGS = -L$(VK_SDK_PATH)/lib -lvulkan `pkg-config --libs glfw3` -lSOIL
 
 binary = main
 obj = main.o \
+	tiny_obj_loader.o \
 	trackball.o \
 	Controller.o \
 	Default.o \
 	HelloVulkan.o \
+	Mesh.o \
 	VulkanCommon.o \
 	VulkanSwapchain.o \
 	Wireframe.o

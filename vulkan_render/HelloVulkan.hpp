@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 
 #include "Controller.hpp"
+#include "Mesh.hpp"
 #include "VulkanCommon.hpp"
 #include "VulkanSwapchain.hpp"
 
@@ -91,6 +92,11 @@ public:
         dev_info.enabledExtensionCount = dev_ext.size();
         dev_info.ppEnabledExtensionNames = dev_ext.data();
 
+        VkPhysicalDeviceFeatures device_feature {};
+        // polygonMode cannot be VK_POLYGON_MODE_POINT or VK_POLYGON_MODE_LINE if VkPhysicalDeviceFeatures->fillModeNonSolid is false.
+        device_feature.fillModeNonSolid = VK_TRUE;
+        dev_info.pEnabledFeatures = &device_feature;
+
         vkCreateDevice(pdev, &dev_info, nullptr, &dev);
         vkGetDeviceQueue(dev, q_family_index, 0, &queue);
 
@@ -160,14 +166,16 @@ private:
     std::vector<VkCommandBuffer> cmdbuf;
     VkRenderPass rp;
     std::vector<VkFramebuffer> framebuffers;
-
+    ImageObj *depth;
+    /* various pipeline */
     VulkanPipe default_pipe;
     VulkanPipe wireframe_pipe;
-    BufferObj *index;
-    BufferObj *vertex;
+    /* default resource */
+    Mesh default_mesh;
+    BufferObj *default_vertex;
+    ImageObj *default_tex;
+    VkSampler default_sampler;
+    /* light */
     std::vector<BufferObj *> uniform;
-    ImageObj *depth;
-    ImageObj *tex;
-    VkSampler sampler;
 };
 #endif

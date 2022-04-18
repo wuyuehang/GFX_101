@@ -42,16 +42,15 @@ HelloVulkan::~HelloVulkan() {
         vkDestroyBuffer(dev, it->get_buffer(), nullptr);
     }
 
-    delete index;
-    delete vertex;
+    delete default_vertex;
 
     for (auto& it : framebuffers) {
         vkDestroyFramebuffer(dev, it, nullptr);
     }
     vkDestroyRenderPass(dev, rp, nullptr);
     delete depth;
-    vkDestroySampler(dev, sampler, nullptr);
-    delete tex;
+    vkDestroySampler(dev, default_sampler, nullptr);
+    delete default_tex;
     vkFreeCommandBuffers(dev, cmdpool, 1, &transfer_cmdbuf);
     vkFreeCommandBuffers(dev, cmdpool, cmdbuf.size(), cmdbuf.data());
     vkDestroyCommandPool(dev, cmdpool, nullptr);
@@ -147,28 +146,10 @@ void HelloVulkan::CreateFramebuffer() {
 
 void HelloVulkan::CreateResource() {
     // VERTEX
-    const std::vector<uint16_t> index_data { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-
-    index = new BufferObj(this);
-    index->init(index_data.size() * sizeof(uint16_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    index->upload(index_data.data(), index_data.size()*sizeof(uint16_t));
-
-    const std::vector<float> interleaved_vb_data {
-        -1.0, -1.0, 0.5, 1.0, /* Position */ 0.0, 0.0, /* UV */
-        1.0, -1.0, 0.5, 1.0, /* Position */ 1.0, 0.0,
-        -1.0, 1.0, 0.5, 1.0, /* Position */ 0.0, 1.0,
-        -0.75, -0.75, 0.75, 1.0, /* Position */ 0.0, 0.0,
-        0.75, -0.75, 0.75, 1.0, /* Position */ 1.0, 0.0,
-        -0.75, 0.75, 0.75, 1.0, /* Position */ 0.0, 1.0,
-        -0.5, -0.5, 1.0, 1.0, /* Position */ 0.0, 0.0,
-        0.5, -0.5, 1.0, 1.0, /* Position */ 1.0, 0.0,
-        -0.5, 0.5, 1.0, 1.0, /* Position */ 0.0, 1.0,
-    };
-
-    vertex = new BufferObj(this);
-    vertex->init(interleaved_vb_data.size() * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vertex->upload(interleaved_vb_data.data(), interleaved_vb_data.size() * sizeof(float));
-
+    default_mesh.load("./assets/obj/viking_room.obj");
+    default_vertex = new BufferObj(this);
+    default_vertex->init(default_mesh.get_vertices().size() * sizeof(Mesh::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    default_vertex->upload(default_mesh.get_vertices().data(), default_mesh.get_vertices().size() * sizeof(Mesh::Vertex));
     // UNIFORM
     uniform.resize(m_max_inflight_frames);
 
@@ -176,11 +157,10 @@ void HelloVulkan::CreateResource() {
         uniform[i] = new BufferObj(this);
         uniform[i]->init(sizeof(struct MVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
-
     // TEXTURE
-    tex = new ImageObj(this);
-    tex->bake("./assets/wall.png");
-    tex->transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+    default_tex = new ImageObj(this);
+    default_tex->bake("./assets/obj/viking_room.png");
+    default_tex->transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 }
 
 void HelloVulkan::BakeCommand(uint32_t frame_nr) {
@@ -202,11 +182,10 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
 
     vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline);
-    vkCmdBindIndexBuffer(cmdbuf[frame_nr], index->get_buffer(), 0, VK_INDEX_TYPE_UINT16);
     VkDeviceSize offsets[] { 0 };
-    vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &vertex->get_buffer(), offsets);
+    vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
     vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
-    vkCmdDrawIndexed(cmdbuf[frame_nr], 9, 1, 0, 0, 0);
+    vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
     vkCmdEndRenderPass(cmdbuf[frame_nr]);
     vkEndCommandBuffer(cmdbuf[frame_nr]);
 }
