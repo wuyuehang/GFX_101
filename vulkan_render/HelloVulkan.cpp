@@ -202,7 +202,7 @@ void HelloVulkan::Gameloop() {
         ctrl->handle_input();
         {
             MVP ubo {};
-            ubo.model = ctrl->get_model();
+            ubo.model = ctrl->get_model() * default_mesh.get_model_mat();
             ubo.view = ctrl->get_view();
             ubo.proj = ctrl->get_proj();
 
