@@ -8,6 +8,12 @@ LDFLAGS = -L$(VK_SDK_PATH)/lib -lvulkan `pkg-config --libs glfw3` -lSOIL
 
 binary = main
 obj = main.o \
+	imgui.o \
+	imgui_draw.o \
+	imgui_impl_glfw.o \
+	imgui_impl_vulkan.o \
+	imgui_tables.o \
+	imgui_widgets.o \
 	tiny_obj_loader.o \
 	trackball.o \
 	Controller.o \

@@ -121,6 +121,7 @@ public:
     void CreateCommand();
     void CreateRenderPass();
     void CreateFramebuffer();
+    void bake_imgui();
     void CreateResource();
     /* default pipleine */
     void bake_default_DescriptorSetLayout();
@@ -177,5 +178,7 @@ private:
     VkSampler default_sampler;
     /* light */
     std::vector<BufferObj *> uniform;
+    /* imgui */
+    VkDescriptorPool imgui_pool;
 };
 #endif

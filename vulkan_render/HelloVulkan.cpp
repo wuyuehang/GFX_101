@@ -1,5 +1,8 @@
 #include <cstring>
 #include "HelloVulkan.hpp"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 
 #if 0
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new FPSController(this)) {
@@ -19,6 +22,9 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
     CreateCommand();
     CreateRenderPass();
     CreateFramebuffer();
+
+    bake_imgui();
+
     CreateResource();
     {
         bake_default_DescriptorSetLayout();
@@ -34,6 +40,12 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
 
 HelloVulkan::~HelloVulkan() {
     vkDeviceWaitIdle(dev);
+    {
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        vkDestroyDescriptorPool(dev, imgui_pool, nullptr);
+    }
     clean_VulkanPipe(wireframe_pipe);
     clean_VulkanPipe(default_pipe);
 
@@ -144,6 +156,84 @@ void HelloVulkan::CreateFramebuffer() {
     }
 }
 
+void HelloVulkan::bake_imgui() {
+    // Delegated descriptor set pool for ImplVulkan backend
+    uint32_t dummy_size = 1000;
+    VkDescriptorPoolSize pool_size[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, dummy_size },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, dummy_size },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, dummy_size },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, dummy_size },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, dummy_size },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, dummy_size },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, dummy_size },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dummy_size },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, dummy_size },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, dummy_size },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, dummy_size },
+    };
+
+    VkDescriptorPoolCreateInfo pool_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = dummy_size * IM_ARRAYSIZE(pool_size);
+    pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_size);
+    pool_info.pPoolSizes = pool_size;
+
+    vkCreateDescriptorPool(dev, &pool_info, nullptr, &imgui_pool);
+
+    // Setup ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+    assert(m_max_inflight_frames != 0);
+
+    // Wire to ImGui
+    ImGui_ImplVulkan_InitInfo init_info {
+        .Instance = instance,
+        .PhysicalDevice = pdev,
+        .Device = dev,
+        .QueueFamily = q_family_index,
+        .Queue = queue,
+        .PipelineCache = VK_NULL_HANDLE,
+        .DescriptorPool = imgui_pool,
+        .Subpass = 0,
+        .MinImageCount = m_max_inflight_frames,
+        .ImageCount = m_max_inflight_frames,
+        .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+        .Allocator = nullptr,
+        .CheckVkResultFn = nullptr,
+    };
+
+    ImGui_ImplVulkan_Init(&init_info, rp); // reuse default renderpass
+
+    // Upload ImGui fonts to GPU
+    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    vkBeginCommandBuffer(transfer_cmdbuf, &cmdbuf_begin_info);
+
+    ImGui_ImplVulkan_CreateFontsTexture(transfer_cmdbuf);
+
+    vkEndCommandBuffer(transfer_cmdbuf);
+
+    VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &transfer_cmdbuf;
+
+    VkFence fence;
+    VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    vkCreateFence(dev, &fence_info, nullptr, &fence);
+    vkQueueSubmit(queue, 1, &submit_info, fence);
+    vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX);
+
+    vkDestroyFence(dev, fence, nullptr);
+    vkResetCommandBuffer(transfer_cmdbuf, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+}
+
 void HelloVulkan::CreateResource() {
     // VERTEX
     default_mesh.load("./assets/obj/viking_room.obj");
@@ -186,12 +276,31 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
     vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
     vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
     vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+
+    // Build ImGui commands
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    ImGui_ImplVulkan_RenderDrawData(draw_data, cmdbuf[frame_nr]);
+
     vkCmdEndRenderPass(cmdbuf[frame_nr]);
     vkEndCommandBuffer(cmdbuf[frame_nr]);
 }
 
 void HelloVulkan::Gameloop() {
     while (!glfwWindowShouldClose(window)) {
+        {
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
+            // Describe the ImGui UI
+            ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); // Pin the UI
+            ImGui::SetNextWindowSize(ImVec2(250, 100), ImGuiCond_Always);
+            ImGui::Begin("Hello, Vulkan!");
+            ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::End();
+            ImGui::Render();
+        }
+
         vkWaitForFences(dev, 1, &fence[m_current_frame], VK_TRUE, UINT64_MAX);
 
         // application / swapchain / presenter (display)
