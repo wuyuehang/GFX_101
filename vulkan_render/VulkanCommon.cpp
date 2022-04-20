@@ -207,7 +207,7 @@ void ImageObj::bake(const std::string filename) {
     uint8_t *ptr = SOIL_load_image(filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
     assert(ptr && c != 0);
 
-    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
     VkImageSubresourceRange range {

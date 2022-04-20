@@ -327,7 +327,7 @@ void HelloVulkan::Gameloop() {
         VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
         submit_info.waitSemaphoreCount = 1;
         submit_info.pWaitSemaphores = &image_available[m_current_frame]; // application can't submit until it has an available image
-        VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &cmdbuf[image_index]; // reference to prebuilt commandbuf
