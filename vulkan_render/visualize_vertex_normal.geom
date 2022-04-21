@@ -12,7 +12,7 @@ layout(set = 0, binding = 0) uniform UBO {
 	mat4 proj;
 } MVP;
 
-#define MAG 0.02f
+#define MAG 0.04f
 
 void main() {
     gl_Position = MVP.proj * gl_in[0].gl_Position;

@@ -62,6 +62,15 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
             tinyobj::index_t v1 = shape.mesh.indices[3 * f + 1];
             tinyobj::index_t v2 = shape.mesh.indices[3 * f + 2];
 
+            // TODO take care of vertex order
+            glm::vec3 manual_normal;
+            if (attrib.normals.size() <= 0) {
+                glm::vec3 A = glm::vec3(attrib.vertices[3 * v0.vertex_index + 0], attrib.vertices[3 * v0.vertex_index + 1], attrib.vertices[3 * v0.vertex_index + 2]);
+                glm::vec3 B = glm::vec3(attrib.vertices[3 * v1.vertex_index + 0], attrib.vertices[3 * v1.vertex_index + 1], attrib.vertices[3 * v1.vertex_index + 2]);
+                glm::vec3 C = glm::vec3(attrib.vertices[3 * v2.vertex_index + 0], attrib.vertices[3 * v2.vertex_index + 1], attrib.vertices[3 * v2.vertex_index + 2]);
+                manual_normal = - glm::cross(C-A, B-A);
+                manual_normal = glm::normalize(manual_normal);
+            }
             Vertex temp {};
             // process first vertex
             temp.pos = {
@@ -77,8 +86,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                     attrib.normals[3 * v0.normal_index + 2],
                 };
             } else {
-                // construct
-                temp.nor = glm::vec3(0.0);
+                temp.nor = manual_normal;
             }
 
             temp.uv = {
@@ -101,8 +109,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                     attrib.normals[3 * v1.normal_index + 2],
                 };
             } else {
-                // construct
-                temp.nor = glm::vec3(0.0);
+                temp.nor = manual_normal;
             }
 
             temp.uv = {
@@ -125,8 +132,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                     attrib.normals[3 * v2.normal_index + 2],
                 };
             } else {
-                // construct
-                temp.nor = glm::vec3(0.0);
+                temp.nor = manual_normal;
             }
 
             temp.uv = {
