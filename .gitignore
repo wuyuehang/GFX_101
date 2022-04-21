@@ -1,3 +1,4 @@
 *.spv
 main
 *.o
+*.ini

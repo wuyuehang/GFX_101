@@ -95,6 +95,8 @@ public:
         VkPhysicalDeviceFeatures device_feature {};
         // polygonMode cannot be VK_POLYGON_MODE_POINT or VK_POLYGON_MODE_LINE if VkPhysicalDeviceFeatures->fillModeNonSolid is false.
         device_feature.fillModeNonSolid = VK_TRUE;
+        // Enable geometry shader
+        device_feature.geometryShader = VK_TRUE;
         dev_info.pEnabledFeatures = &device_feature;
 
         vkCreateDevice(pdev, &dev_info, nullptr, &dev);
@@ -131,6 +133,10 @@ public:
     void bake_wireframe_DescriptorSetLayout();
     void bake_wireframe_DescriptorSet();
     void bake_wireframe_Pipeline();
+    /* visualize vertex normal pipeline */
+    void bake_visualize_vertex_normal_DescriptorSetLayout();
+    void bake_visualize_vertex_normal_DescriptorSet();
+    void bake_visualize_vertex_normal_Pipeline();
     void clean_VulkanPipe(VulkanPipe p) {
         vkDestroyPipeline(dev, p.pipeline, nullptr);
         vkDestroyPipelineLayout(dev, p.pipeline_layout, nullptr);
@@ -171,6 +177,7 @@ private:
     /* various pipeline */
     VulkanPipe default_pipe;
     VulkanPipe wireframe_pipe;
+    VulkanPipe visualize_vertex_normal_pipe;
     /* default resource */
     Mesh default_mesh;
     BufferObj *default_vertex;
@@ -181,5 +188,6 @@ private:
     /* imgui */
     VkDescriptorPool imgui_pool;
     bool wireframe_mode;
+    bool visualize_vertex_normal_mode;
 };
 #endif

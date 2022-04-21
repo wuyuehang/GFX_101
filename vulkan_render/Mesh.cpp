@@ -78,7 +78,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 };
             } else {
                 // construct
-                temp.nor = {};
+                temp.nor = glm::vec3(0.0);
             }
 
             temp.uv = {
@@ -102,7 +102,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 };
             } else {
                 // construct
-                temp.nor = {};
+                temp.nor = glm::vec3(0.0);
             }
 
             temp.uv = {
@@ -126,7 +126,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 };
             } else {
                 // construct
-                temp.nor = {};
+                temp.nor = glm::vec3(0.0);
             }
 
             temp.uv = {

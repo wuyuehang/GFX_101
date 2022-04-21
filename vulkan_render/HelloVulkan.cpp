@@ -7,7 +7,8 @@
 #if 0
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new FPSController(this)) {
 #else
-HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)), m_current_frame(0) {
+HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)),
+    m_current_frame(0), wireframe_mode(false), visualize_vertex_normal_mode(false) {
 #endif
     InitGLFW();
     CreateInstance();
@@ -36,6 +37,11 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
         bake_wireframe_DescriptorSet();
         bake_wireframe_Pipeline();
     }
+    {
+        bake_visualize_vertex_normal_DescriptorSetLayout();
+        bake_visualize_vertex_normal_DescriptorSet();
+        bake_visualize_vertex_normal_Pipeline();
+    }
 }
 
 HelloVulkan::~HelloVulkan() {
@@ -46,6 +52,7 @@ HelloVulkan::~HelloVulkan() {
         ImGui::DestroyContext();
         vkDestroyDescriptorPool(dev, imgui_pool, nullptr);
     }
+    clean_VulkanPipe(visualize_vertex_normal_pipe);
     clean_VulkanPipe(wireframe_pipe);
     clean_VulkanPipe(default_pipe);
 
@@ -302,6 +309,16 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
         vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+
+        if (visualize_vertex_normal_mode) {
+            {
+                vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, visualize_vertex_normal_pipe.pipeline);
+                VkDeviceSize offsets[] = { 0 };
+                vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+                vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, visualize_vertex_normal_pipe.pipeline_layout, 0, 1, &visualize_vertex_normal_pipe.ds[frame_nr], 0, nullptr);
+                vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+            }
+        }
     }
 
     // Build ImGui commands
@@ -324,6 +341,7 @@ void HelloVulkan::Gameloop() {
             ImGui::SetNextWindowSize(ImVec2(250, 100), ImGuiCond_Always);
             ImGui::Begin("Hello, Vulkan!");
             ImGui::Checkbox("Wireframe", &wireframe_mode);
+            ImGui::Checkbox("Vertex normal", &visualize_vertex_normal_mode);
             ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
             ImGui::Render();
