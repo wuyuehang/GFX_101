@@ -53,7 +53,7 @@ void HelloVulkan::bake_wireframe_DescriptorSet() {
 }
 
 void HelloVulkan::bake_wireframe_Pipeline() {
-    auto vert = loadSPIRV(dev, "wireframe.vert.spv");
+    auto vert = loadSPIRV(dev, "simple.vert.spv");
     auto frag = loadSPIRV(dev, "wireframe.frag.spv");
 
     VkPipelineShaderStageCreateInfo vert_stage_info { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -71,14 +71,22 @@ void HelloVulkan::bake_wireframe_Pipeline() {
     // vertex input
     std::vector<VkVertexInputBindingDescription> vbd(1);
     vbd[0].binding = 0;
-    vbd[0].stride = 3 * sizeof(float);
+    vbd[0].stride = sizeof(Mesh::Vertex);
     vbd[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    std::vector<VkVertexInputAttributeDescription> ad(1);
+    std::array<VkVertexInputAttributeDescription, 3> ad;
     ad[0].location = 0; // Position.xyz
-    ad[0].binding = 0; // vertex buffer
+    ad[0].binding = 0;
     ad[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    ad[0].offset = 0;
+    ad[0].offset = offsetof(Mesh::Vertex, pos);
+    ad[1].location = 1; // Normal.xyz
+    ad[1].binding = 0;
+    ad[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    ad[1].offset = offsetof(Mesh::Vertex, nor);
+    ad[2].location = 2; // UV.xy
+    ad[2].binding = 0;
+    ad[2].format = VK_FORMAT_R32G32_SFLOAT;
+    ad[2].offset = offsetof(Mesh::Vertex, uv);
 
     VkPipelineVertexInputStateCreateInfo vert_input_state {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,

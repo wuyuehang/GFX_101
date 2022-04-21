@@ -97,7 +97,7 @@ void TrackballController::handle_input() {
     if (!init_control_system) {
         trackball(curr_quat, 0, 0, 0, 0);
 
-        eye = glm::vec3(0.0, 0.0, 5.0);
+        eye = glm::vec3(0.0, 0.0, 4.0);
         up = glm::vec3(0.0, 1.0, 0.0);
         front = glm::vec3(0.0, 0.0, 0.0);
 

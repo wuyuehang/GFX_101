@@ -256,28 +256,53 @@ void HelloVulkan::CreateResource() {
 }
 
 void HelloVulkan::BakeCommand(uint32_t frame_nr) {
-    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
+    if (wireframe_mode) {
+        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
 
-    VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-    begin_renderpass_info.renderPass = rp;
-    begin_renderpass_info.framebuffer = framebuffers[frame_nr];
-    begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
-    begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        begin_renderpass_info.renderPass = rp;
+        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
 
-    std::array<VkClearValue, 2> clear_value {};
-    clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
-    clear_value[1].depthStencil.depth = 1.0;
-    begin_renderpass_info.clearValueCount = clear_value.size();
-    begin_renderpass_info.pClearValues = clear_value.data();
+        std::array<VkClearValue, 2> clear_value {};
+        clear_value[0].color = VkClearColorValue{ 1.0, 1.0, 1.0, 1.0 };
+        clear_value[1].depthStencil.depth = 1.0;
+        begin_renderpass_info.clearValueCount = clear_value.size();
+        begin_renderpass_info.pClearValues = clear_value.data();
 
-    vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline);
-    VkDeviceSize offsets[] { 0 };
-    vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
-    vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
-    vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+        vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipe.pipeline);
+        VkDeviceSize offsets[] { 0 };
+        vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+        vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipe.pipeline_layout, 0, 1, &wireframe_pipe.ds[frame_nr], 0, nullptr);
+        vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+    } else {
+        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
+
+        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        begin_renderpass_info.renderPass = rp;
+        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+
+        std::array<VkClearValue, 2> clear_value {};
+        clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
+        clear_value[1].depthStencil.depth = 1.0;
+        begin_renderpass_info.clearValueCount = clear_value.size();
+        begin_renderpass_info.pClearValues = clear_value.data();
+
+        vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline);
+        VkDeviceSize offsets[] { 0 };
+        vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+        vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
+        vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+    }
 
     // Build ImGui commands
     ImDrawData* draw_data = ImGui::GetDrawData();
@@ -298,6 +323,7 @@ void HelloVulkan::Gameloop() {
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); // Pin the UI
             ImGui::SetNextWindowSize(ImVec2(250, 100), ImGuiCond_Always);
             ImGui::Begin("Hello, Vulkan!");
+            ImGui::Checkbox("Wireframe", &wireframe_mode);
             ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
             ImGui::Render();

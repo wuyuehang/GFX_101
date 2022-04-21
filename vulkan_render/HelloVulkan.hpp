@@ -180,5 +180,6 @@ private:
     std::vector<BufferObj *> uniform;
     /* imgui */
     VkDescriptorPool imgui_pool;
+    bool wireframe_mode;
 };
 #endif
