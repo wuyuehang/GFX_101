@@ -5,7 +5,7 @@
 #include "tiny_obj_loader.h"
 #include "Mesh.hpp"
 
-void Mesh::load(const std::string filename) {
+void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
 /*
     attrib_t::vertices => 3 floats per vertex
 
@@ -70,11 +70,16 @@ void Mesh::load(const std::string filename) {
                 attrib.vertices[3 * v0.vertex_index + 2],
             };
 
-            temp.nor = {
-                attrib.normals[3 * v0.normal_index + 0],
-                attrib.normals[3 * v0.normal_index + 1],
-                attrib.normals[3 * v0.normal_index + 2],
-            };
+            if (attrib.normals.size() > 0) {
+                temp.nor = {
+                    attrib.normals[3 * v0.normal_index + 0],
+                    attrib.normals[3 * v0.normal_index + 1],
+                    attrib.normals[3 * v0.normal_index + 2],
+                };
+            } else {
+                // construct
+                temp.nor = {};
+            }
 
             temp.uv = {
                 attrib.texcoords[2 * v0.texcoord_index + 0],
@@ -89,11 +94,16 @@ void Mesh::load(const std::string filename) {
                 attrib.vertices[3 * v1.vertex_index + 2],
             };
 
-            temp.nor = {
-                attrib.normals[3 * v1.normal_index + 0],
-                attrib.normals[3 * v1.normal_index + 1],
-                attrib.normals[3 * v1.normal_index + 2],
-            };
+            if (attrib.normals.size() > 0) {
+                temp.nor = {
+                    attrib.normals[3 * v1.normal_index + 0],
+                    attrib.normals[3 * v1.normal_index + 1],
+                    attrib.normals[3 * v1.normal_index + 2],
+                };
+            } else {
+                // construct
+                temp.nor = {};
+            }
 
             temp.uv = {
                 attrib.texcoords[2 * v1.texcoord_index + 0],
@@ -108,11 +118,16 @@ void Mesh::load(const std::string filename) {
                 attrib.vertices[3 * v2.vertex_index + 2],
             };
 
-            temp.nor = {
-                attrib.normals[3 * v2.normal_index + 0],
-                attrib.normals[3 * v2.normal_index + 1],
-                attrib.normals[3 * v2.normal_index + 2],
-            };
+            if (attrib.normals.size() > 0) {
+                temp.nor = {
+                    attrib.normals[3 * v2.normal_index + 0],
+                    attrib.normals[3 * v2.normal_index + 1],
+                    attrib.normals[3 * v2.normal_index + 2],
+                };
+            } else {
+                // construct
+                temp.nor = {};
+            }
 
             temp.uv = {
                 attrib.texcoords[2 * v2.texcoord_index + 0],
@@ -154,7 +169,7 @@ void Mesh::load(const std::string filename) {
     scale = std::min(scale, (1.0 - (-1.0)) / (box.ymax - box.ymin));
     scale = std::min(scale, (1.0 - (-1.0)) / (box.ymax - box.zmin));
 
-    glm::mat4 pre_scale = glm::scale(glm::mat4(1.0), glm::vec3(scale, scale, scale));
+    glm::mat4 pre_scale = glm::scale(pre_rotation, glm::vec3(scale, scale, scale));
     /* translate to centre */
     m_model_mat = glm::translate(pre_scale, glm::vec3(-0.5 * (box.xmax + box.xmin), -0.5 * (box.ymax + box.ymin), -0.5 * (box.zmax + box.zmin)));
 }

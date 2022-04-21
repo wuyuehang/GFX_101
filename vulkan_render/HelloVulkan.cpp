@@ -236,7 +236,9 @@ void HelloVulkan::bake_imgui() {
 
 void HelloVulkan::CreateResource() {
     // VERTEX
-    default_mesh.load("./assets/obj/viking_room.obj");
+    glm::mat4 pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(90.0), glm::vec3(1.0, 0.0, 0.0));
+    pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(-90.0), glm::vec3(0.0, 1.0, 0.0)) * pre_rotation_mat;
+    default_mesh.load("./assets/obj/Buddha.obj", pre_rotation_mat);
     default_vertex = new BufferObj(this);
     default_vertex->init(default_mesh.get_vertices().size() * sizeof(Mesh::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     default_vertex->upload(default_mesh.get_vertices().data(), default_mesh.get_vertices().size() * sizeof(Mesh::Vertex));
@@ -249,7 +251,7 @@ void HelloVulkan::CreateResource() {
     }
     // TEXTURE
     default_tex = new ImageObj(this);
-    default_tex->bake("./assets/obj/viking_room.png");
+    default_tex->bake("./assets/obj/Buddha.jpg");
     default_tex->transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 }
 
