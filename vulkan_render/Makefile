@@ -1,6 +1,6 @@
 VK_SDK_PATH = /home/yuewu01/v/1.3.204.1/x86_64
 
-CXXFLAGS = -g -std=c++11 -I$(VK_SDK_PATH)/include -I.
+CXXFLAGS = -std=c++11 -I$(VK_SDK_PATH)/include -I.
 
 LDFLAGS = -L$(VK_SDK_PATH)/lib -lvulkan `pkg-config --libs glfw3` -lSOIL
 
@@ -20,6 +20,7 @@ obj = main.o \
 	Default.o \
 	HelloVulkan.o \
 	Mesh.o \
+	Phong.o \
 	VulkanCommon.o \
 	VulkanSwapchain.o \
 	Visualize_Vertex_Normal.o \
@@ -35,6 +36,8 @@ main : $(obj)
 
 spv :
 	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert.glsl -o simple.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V phong.vert -o phong.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V phong.frag -o phong.frag.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.vert -o visualize_vertex_normal.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.geom -o visualize_vertex_normal.geom.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.frag -o visualize_vertex_normal.frag.spv

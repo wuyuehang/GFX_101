@@ -8,7 +8,8 @@
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new FPSController(this)) {
 #else
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)),
-    m_current_frame(0), wireframe_mode(false), visualize_vertex_normal_mode(false) {
+    m_current_frame(0), wireframe_mode(false), visualize_vertex_normal_mode(false),
+    phong_mode(0) {
 #endif
     InitGLFW();
     CreateInstance();
@@ -42,6 +43,11 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
         bake_visualize_vertex_normal_DescriptorSet();
         bake_visualize_vertex_normal_Pipeline();
     }
+    {
+        bake_phong_DescriptorSetLayout();
+        bake_phong_DescriptorSet();
+        bake_phong_Pipeline();
+    }
 }
 
 HelloVulkan::~HelloVulkan() {
@@ -52,15 +58,22 @@ HelloVulkan::~HelloVulkan() {
         ImGui::DestroyContext();
         vkDestroyDescriptorPool(dev, imgui_pool, nullptr);
     }
+    clean_VulkanPipe(phong_pipe);
     clean_VulkanPipe(visualize_vertex_normal_pipe);
     clean_VulkanPipe(wireframe_pipe);
     clean_VulkanPipe(default_pipe);
 
+    // UNIFORM
     for (const auto& it : uniform) {
         vkFreeMemory(dev, it->get_memory(), nullptr);
         vkDestroyBuffer(dev, it->get_buffer(), nullptr);
     }
-
+    // LIGHT
+    for (const auto& it : light) {
+        vkFreeMemory(dev, it->get_memory(), nullptr);
+        vkDestroyBuffer(dev, it->get_buffer(), nullptr);
+    }
+    // VERTEX
     delete default_vertex;
 
     for (auto& it : framebuffers) {
@@ -251,10 +264,15 @@ void HelloVulkan::CreateResource() {
     default_vertex->upload(default_mesh.get_vertices().data(), default_mesh.get_vertices().size() * sizeof(Mesh::Vertex));
     // UNIFORM
     uniform.resize(m_max_inflight_frames);
-
-    for (uint32_t i = 0; i < uniform.size(); i++) {
+    for (auto i = 0; i < uniform.size(); i++) {
         uniform[i] = new BufferObj(this);
         uniform[i]->init(sizeof(struct MVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+    // LIGHT
+    light.resize(m_max_inflight_frames);
+    for (auto i = 0; i < light.size(); i++) {
+        light[i] = new BufferObj(this);
+        light[i]->init(sizeof(struct LIGHT), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
     // TEXTURE
     default_tex = new ImageObj(this);
@@ -263,7 +281,30 @@ void HelloVulkan::CreateResource() {
 }
 
 void HelloVulkan::BakeCommand(uint32_t frame_nr) {
-    if (wireframe_mode) {
+    if (phong_mode) {
+        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
+
+        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        begin_renderpass_info.renderPass = rp;
+        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+
+        std::array<VkClearValue, 2> clear_value {};
+        clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
+        clear_value[1].depthStencil.depth = 1.0;
+        begin_renderpass_info.clearValueCount = clear_value.size();
+        begin_renderpass_info.pClearValues = clear_value.data();
+
+        vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, phong_pipe.pipeline);
+        VkDeviceSize offsets[] { 0 };
+        vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+        vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, phong_pipe.pipeline_layout, 0, 1, &phong_pipe.ds[frame_nr], 0, nullptr);
+        vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+    } else if (wireframe_mode) {
         VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
         vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
@@ -342,6 +383,7 @@ void HelloVulkan::Gameloop() {
             ImGui::Begin("Hello, Vulkan!");
             ImGui::Checkbox("Wireframe", &wireframe_mode);
             ImGui::Checkbox("Vertex normal", &visualize_vertex_normal_mode);
+            ImGui::Checkbox("Phong", &phong_mode);
             ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
             ImGui::Render();
@@ -365,6 +407,17 @@ void HelloVulkan::Gameloop() {
             vkMapMemory(dev, uniform[image_index]->get_memory(), 0, sizeof(ubo), 0, &buf_ptr);
             memcpy(buf_ptr, &ubo, sizeof(ubo));
             vkUnmapMemory(dev, uniform[image_index]->get_memory());
+        }
+        {
+            // handle light position
+            LIGHT lt {};
+            lt.world_loc = glm::vec3(8.0, 0.0, 0.0); // can change dynamically
+            lt.world_loc = glm::mat3(ctrl->get_view()) * lt.world_loc; // calculate in viewspace
+
+            void *buf_ptr;
+            vkMapMemory(dev, light[image_index]->get_memory(), 0, sizeof(lt), 0, &buf_ptr);
+            memcpy(buf_ptr, &lt, sizeof(lt));
+            vkUnmapMemory(dev, light[image_index]->get_memory());
         }
         BakeCommand(m_current_frame);
 

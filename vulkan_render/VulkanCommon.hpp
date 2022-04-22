@@ -14,6 +14,10 @@ struct MVP {
     glm::mat4 proj;
 };
 
+struct LIGHT {
+    glm::vec3 world_loc; // world location of light, f.inst point light
+};
+
 class HelloVulkan;
 
 class BufferObj {

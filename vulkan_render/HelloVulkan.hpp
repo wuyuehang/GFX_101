@@ -137,6 +137,10 @@ public:
     void bake_visualize_vertex_normal_DescriptorSetLayout();
     void bake_visualize_vertex_normal_DescriptorSet();
     void bake_visualize_vertex_normal_Pipeline();
+    /* phong pipeline */
+    void bake_phong_DescriptorSetLayout();
+    void bake_phong_DescriptorSet();
+    void bake_phong_Pipeline();
     void clean_VulkanPipe(VulkanPipe p) {
         vkDestroyPipeline(dev, p.pipeline, nullptr);
         vkDestroyPipelineLayout(dev, p.pipeline_layout, nullptr);
@@ -178,16 +182,19 @@ private:
     VulkanPipe default_pipe;
     VulkanPipe wireframe_pipe;
     VulkanPipe visualize_vertex_normal_pipe;
+    VulkanPipe phong_pipe;
     /* default resource */
     Mesh default_mesh;
     BufferObj *default_vertex;
     ImageObj *default_tex;
     VkSampler default_sampler;
     /* light */
+    std::vector<BufferObj *> light;
     std::vector<BufferObj *> uniform;
     /* imgui */
     VkDescriptorPool imgui_pool;
     bool wireframe_mode;
     bool visualize_vertex_normal_mode;
+    bool phong_mode;
 };
 #endif
