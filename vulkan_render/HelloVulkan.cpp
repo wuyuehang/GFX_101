@@ -432,7 +432,7 @@ void HelloVulkan::Gameloop() {
         {
             // handle light position
             LIGHT lt {};
-            lt.world_loc = glm::vec3(8.0, 0.0, 0.0); // can change dynamically
+            lt.world_loc = glm::vec3(0.0, 0.0, 15.0); // can change dynamically
             lt.world_loc = glm::mat3(ctrl->get_view()) * lt.world_loc; // calculate in viewspace
 
             void *buf_ptr;

@@ -15,5 +15,11 @@ void main()
     vec3 light_dir = normalize(LIGHT.view_loc - vout_Pos);
     float diffuse = max(dot(light_dir, vout_Nor), 0.0);
 
-	SV_Target = vec4(diffuse);
+    // specular
+    // since we're in view coordinate space, the view is origin at 0
+    vec3 view_dir = normalize( - vout_Pos);
+    vec3 reflect_dir = reflect(light_dir, vout_Nor);
+    float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), 128);
+
+    SV_Target = vec4(specular + diffuse);
 }
