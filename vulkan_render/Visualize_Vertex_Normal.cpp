@@ -1,38 +1,37 @@
 #include "HelloVulkan.hpp"
 
-void HelloVulkan::bake_visualize_vertex_normal_DescriptorSetLayout() {
-    std::vector<VkDescriptorSetLayoutBinding> bindings(1);
-    bindings[0].binding = 0;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bindings[0].descriptorCount = 1;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT;
+void HelloVulkan::bake_visualize_vertex_normal_DescriptorSetLayout(VulkanPipe & pipe) {
+     /* binding, descriptorType, descriptorCount, stageFlags, pImmutableSamplers */
+    std::vector<VkDescriptorSetLayoutBinding> bindings {
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT },
+    };
 
     VkDescriptorSetLayoutCreateInfo dsl_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     dsl_info.bindingCount = bindings.size();
     dsl_info.pBindings = bindings.data();
-    vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &visualize_vertex_normal_pipe.dsl);
+    vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &pipe.dsl);
 }
 
-void HelloVulkan::bake_visualize_vertex_normal_DescriptorSet() {
-    visualize_vertex_normal_pipe.ds.resize(m_max_inflight_frames);
+void HelloVulkan::bake_visualize_vertex_normal_DescriptorSet(VulkanPipe & pipe) {
+    pipe.ds.resize(m_max_inflight_frames);
 
     std::vector<VkDescriptorPoolSize> pool_size(1);
     pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_size[0].descriptorCount = visualize_vertex_normal_pipe.ds.size();
+    pool_size[0].descriptorCount = pipe.ds.size();
 
     VkDescriptorPoolCreateInfo pool_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = visualize_vertex_normal_pipe.ds.size();
+    pool_info.maxSets = pipe.ds.size();
     pool_info.poolSizeCount = pool_size.size();
     pool_info.pPoolSizes = pool_size.data();
-    vkCreateDescriptorPool(dev, &pool_info, nullptr, &visualize_vertex_normal_pipe.pool);
+    vkCreateDescriptorPool(dev, &pool_info, nullptr, &pipe.pool);
 
-    for (uint32_t i = 0; i < visualize_vertex_normal_pipe.ds.size(); i++) {
+    for (uint32_t i = 0; i < pipe.ds.size(); i++) {
         VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-        alloc_info.descriptorPool = visualize_vertex_normal_pipe.pool;
+        alloc_info.descriptorPool = pipe.pool;
         alloc_info.descriptorSetCount = 1;
-        alloc_info.pSetLayouts = &visualize_vertex_normal_pipe.dsl;
-        vkAllocateDescriptorSets(dev, &alloc_info, &visualize_vertex_normal_pipe.ds[i]);
+        alloc_info.pSetLayouts = &pipe.dsl;
+        vkAllocateDescriptorSets(dev, &alloc_info, &pipe.ds[i]);
 
         VkDescriptorBufferInfo buf_info {
             .buffer = uniform[i]->get_buffer(),
@@ -41,7 +40,7 @@ void HelloVulkan::bake_visualize_vertex_normal_DescriptorSet() {
         };
 
         VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-        write.dstSet = visualize_vertex_normal_pipe.ds[i];
+        write.dstSet = pipe.ds[i];
         write.dstBinding = 0;
         write.dstArrayElement = 0;
         write.descriptorCount = 1;
@@ -52,7 +51,7 @@ void HelloVulkan::bake_visualize_vertex_normal_DescriptorSet() {
     }
 }
 
-void HelloVulkan::bake_visualize_vertex_normal_Pipeline() {
+void HelloVulkan::bake_visualize_vertex_normal_Pipeline(VulkanPipe & pipe) {
     auto vert = loadSPIRV(dev, "visualize_vertex_normal.vert.spv");
     auto geom = loadSPIRV(dev, "visualize_vertex_normal.geom.spv");
     auto frag = loadSPIRV(dev, "visualize_vertex_normal.frag.spv");
@@ -184,9 +183,9 @@ void HelloVulkan::bake_visualize_vertex_normal_Pipeline() {
 
     VkPipelineLayoutCreateInfo layout_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     layout_info.setLayoutCount = 1;
-    layout_info.pSetLayouts = &visualize_vertex_normal_pipe.dsl;
+    layout_info.pSetLayouts = &pipe.dsl;
 
-    vkCreatePipelineLayout(dev, &layout_info, nullptr, &visualize_vertex_normal_pipe.pipeline_layout);
+    vkCreatePipelineLayout(dev, &layout_info, nullptr, &pipe.pipeline_layout);
 
     VkGraphicsPipelineCreateInfo pipeline_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
     pipeline_info.stageCount = shader_stage_info.size();
@@ -199,10 +198,10 @@ void HelloVulkan::bake_visualize_vertex_normal_Pipeline() {
     pipeline_info.pDepthStencilState = &ds_state;
     pipeline_info.pColorBlendState = &blend_state;
     pipeline_info.pDynamicState = nullptr;
-    pipeline_info.layout = visualize_vertex_normal_pipe.pipeline_layout;
+    pipeline_info.layout = pipe.pipeline_layout;
     pipeline_info.renderPass = rp;
     pipeline_info.subpass = 0;
-    vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &visualize_vertex_normal_pipe.pipeline);
+    vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipe.pipeline);
     vkDestroyShaderModule(dev, vert, nullptr);
     vkDestroyShaderModule(dev, geom, nullptr);
     vkDestroyShaderModule(dev, frag, nullptr);

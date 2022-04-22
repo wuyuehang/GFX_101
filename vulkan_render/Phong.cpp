@@ -1,6 +1,6 @@
 #include "HelloVulkan.hpp"
 
-void HelloVulkan::bake_phong_DescriptorSetLayout() {
+void HelloVulkan::bake_phong_DescriptorSetLayout(VulkanPipe & pipe) {
     /* binding, descriptorType, descriptorCount, stageFlags, pImmutableSamplers */
     std::vector<VkDescriptorSetLayoutBinding> bindings {
         { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }, // Model-View-Proj
@@ -10,12 +10,10 @@ void HelloVulkan::bake_phong_DescriptorSetLayout() {
     VkDescriptorSetLayoutCreateInfo dsl_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     dsl_info.bindingCount = bindings.size();
     dsl_info.pBindings = bindings.data();
-    vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &phong_pipe.dsl);
+    vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &pipe.dsl);
 }
 
-void HelloVulkan::bake_phong_DescriptorSet() {
-    VulkanPipe & pipe = phong_pipe;
-
+void HelloVulkan::bake_phong_DescriptorSet(VulkanPipe & pipe) {
     pipe.ds.resize(m_max_inflight_frames);
 
     std::vector<VkDescriptorPoolSize> pool_size(2);
@@ -32,7 +30,7 @@ void HelloVulkan::bake_phong_DescriptorSet() {
     pool_info.pPoolSizes = pool_size.data();
     vkCreateDescriptorPool(dev, &pool_info, nullptr, &pipe.pool);
 
-    for (uint32_t i = 0; i < pipe.ds.size(); i++) {
+    for (auto i = 0; i < pipe.ds.size(); i++) {
         VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
         alloc_info.descriptorPool = pipe.pool;
         alloc_info.descriptorSetCount = 1;
@@ -72,9 +70,7 @@ void HelloVulkan::bake_phong_DescriptorSet() {
     }
 }
 
-void HelloVulkan::bake_phong_Pipeline() {
-    VulkanPipe & pipe = phong_pipe;
-
+void HelloVulkan::bake_phong_Pipeline(VulkanPipe & pipe) {
     auto vert = loadSPIRV(dev, "phong.vert.spv");
     auto frag = loadSPIRV(dev, "phong.frag.spv");
 

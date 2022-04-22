@@ -8,8 +8,7 @@
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new FPSController(this)) {
 #else
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)),
-    m_current_frame(0), wireframe_mode(false), visualize_vertex_normal_mode(false),
-    phong_mode(0) {
+    m_current_frame(0) {
 #endif
     InitGLFW();
     CreateInstance();
@@ -29,24 +28,24 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
 
     CreateResource();
     {
-        bake_default_DescriptorSetLayout();
-        bake_default_DescriptorSet();
-        bake_default_Pipeline();
+        bake_default_DescriptorSetLayout(default_pipe);
+        bake_default_DescriptorSet(default_pipe);
+        bake_default_Pipeline(default_pipe);
     }
     {
-        bake_wireframe_DescriptorSetLayout();
-        bake_wireframe_DescriptorSet();
-        bake_wireframe_Pipeline();
+        bake_wireframe_DescriptorSetLayout(wireframe_pipe);
+        bake_wireframe_DescriptorSet(wireframe_pipe);
+        bake_wireframe_Pipeline(wireframe_pipe);
     }
     {
-        bake_visualize_vertex_normal_DescriptorSetLayout();
-        bake_visualize_vertex_normal_DescriptorSet();
-        bake_visualize_vertex_normal_Pipeline();
+        bake_visualize_vertex_normal_DescriptorSetLayout(visualize_vertex_normal_pipe);
+        bake_visualize_vertex_normal_DescriptorSet(visualize_vertex_normal_pipe);
+        bake_visualize_vertex_normal_Pipeline(visualize_vertex_normal_pipe);
     }
     {
-        bake_phong_DescriptorSetLayout();
-        bake_phong_DescriptorSet();
-        bake_phong_Pipeline();
+        bake_phong_DescriptorSetLayout(phong_pipe);
+        bake_phong_DescriptorSet(phong_pipe);
+        bake_phong_Pipeline(phong_pipe);
     }
 }
 
@@ -281,7 +280,7 @@ void HelloVulkan::CreateResource() {
 }
 
 void HelloVulkan::BakeCommand(uint32_t frame_nr) {
-    if (phong_mode) {
+    if (exclusive_mode == PHONG_MODE) {
         VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
         vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
@@ -304,7 +303,7 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
         vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, phong_pipe.pipeline_layout, 0, 1, &phong_pipe.ds[frame_nr], 0, nullptr);
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
-    } else if (wireframe_mode) {
+    } else if (exclusive_mode == WIREFRAME_MODE) {
         VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
         vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
@@ -327,7 +326,7 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
         vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipe.pipeline_layout, 0, 1, &wireframe_pipe.ds[frame_nr], 0, nullptr);
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
-    } else {
+    } else if (exclusive_mode == VISUALIZE_VERTEX_NORMAL_MODE) {
         VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
         cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
         vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
@@ -351,15 +350,36 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
 
-        if (visualize_vertex_normal_mode) {
-            {
-                vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, visualize_vertex_normal_pipe.pipeline);
-                VkDeviceSize offsets[] = { 0 };
-                vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
-                vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, visualize_vertex_normal_pipe.pipeline_layout, 0, 1, &visualize_vertex_normal_pipe.ds[frame_nr], 0, nullptr);
-                vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
-            }
+        {
+            vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, visualize_vertex_normal_pipe.pipeline);
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+            vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, visualize_vertex_normal_pipe.pipeline_layout, 0, 1, &visualize_vertex_normal_pipe.ds[frame_nr], 0, nullptr);
+            vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
         }
+    } else if (exclusive_mode == DEFAULT_MODE) {
+        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
+
+        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        begin_renderpass_info.renderPass = rp;
+        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+
+        std::array<VkClearValue, 2> clear_value {};
+        clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
+        clear_value[1].depthStencil.depth = 1.0;
+        begin_renderpass_info.clearValueCount = clear_value.size();
+        begin_renderpass_info.pClearValues = clear_value.data();
+
+        vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline);
+        VkDeviceSize offsets[] { 0 };
+        vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+        vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline_layout, 0, 1, &default_pipe.ds[frame_nr], 0, nullptr);
+        vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
     }
 
     // Build ImGui commands
@@ -379,11 +399,12 @@ void HelloVulkan::Gameloop() {
 
             // Describe the ImGui UI
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); // Pin the UI
-            ImGui::SetNextWindowSize(ImVec2(250, 100), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(250, 200), ImGuiCond_Always);
             ImGui::Begin("Hello, Vulkan!");
-            ImGui::Checkbox("Wireframe", &wireframe_mode);
-            ImGui::Checkbox("Vertex normal", &visualize_vertex_normal_mode);
-            ImGui::Checkbox("Phong", &phong_mode);
+            ImGui::RadioButton("Default", &exclusive_mode, DEFAULT_MODE);
+            ImGui::RadioButton("Wireframe", &exclusive_mode, WIREFRAME_MODE);
+            ImGui::RadioButton("Vertex Normal", &exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
+            ImGui::RadioButton("Phong", &exclusive_mode, PHONG_MODE);
             ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
             ImGui::Render();

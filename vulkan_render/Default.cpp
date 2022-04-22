@@ -1,46 +1,41 @@
 #include "HelloVulkan.hpp"
 
-void HelloVulkan::bake_default_DescriptorSetLayout() {
-    std::vector<VkDescriptorSetLayoutBinding> bindings(2);
-    bindings[0].binding = 0;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bindings[0].descriptorCount = 1;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    bindings[1].binding = 1;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+void HelloVulkan::bake_default_DescriptorSetLayout(VulkanPipe & pipe) {
+    /* binding, descriptorType, descriptorCount, stageFlags, pImmutableSamplers */
+    std::vector<VkDescriptorSetLayoutBinding> bindings {
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }, // Model-View-Proj
+        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }, // Texture2D
+    };
 
     VkDescriptorSetLayoutCreateInfo dsl_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     dsl_info.bindingCount = bindings.size();
     dsl_info.pBindings = bindings.data();
-    vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &default_pipe.dsl);
+    vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &pipe.dsl);
 }
 
-void HelloVulkan::bake_default_DescriptorSet() {
-    default_pipe.ds.resize(m_max_inflight_frames);
+void HelloVulkan::bake_default_DescriptorSet(VulkanPipe & pipe) {
+    pipe.ds.resize(m_max_inflight_frames);
 
     std::vector<VkDescriptorPoolSize> pool_size(2);
     pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_size[0].descriptorCount = default_pipe.ds.size();
+    pool_size[0].descriptorCount = pipe.ds.size();
 
     pool_size[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_size[1].descriptorCount = default_pipe.ds.size(); // Even sampler doesn't change over frames, still need reserve the same number as DescriptorSet is per frame.
+    pool_size[1].descriptorCount = pipe.ds.size(); // Even sampler doesn't change over frames, still need reserve the same number as DescriptorSet is per frame.
 
     VkDescriptorPoolCreateInfo pool_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = default_pipe.ds.size();
+    pool_info.maxSets = pipe.ds.size();
     pool_info.poolSizeCount = pool_size.size();
     pool_info.pPoolSizes = pool_size.data();
-    vkCreateDescriptorPool(dev, &pool_info, nullptr, &default_pipe.pool);
+    vkCreateDescriptorPool(dev, &pool_info, nullptr, &pipe.pool);
 
-    for (uint32_t i = 0; i < default_pipe.ds.size(); i++) {
+    for (auto i = 0; i < pipe.ds.size(); i++) {
         VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-        alloc_info.descriptorPool = default_pipe.pool;
+        alloc_info.descriptorPool = pipe.pool;
         alloc_info.descriptorSetCount = 1;
-        alloc_info.pSetLayouts = &default_pipe.dsl;
-        vkAllocateDescriptorSets(dev, &alloc_info, &default_pipe.ds[i]);
+        alloc_info.pSetLayouts = &pipe.dsl;
+        vkAllocateDescriptorSets(dev, &alloc_info, &pipe.ds[i]);
 
         VkDescriptorBufferInfo buf_info {
             .buffer = uniform[i]->get_buffer(),
@@ -49,7 +44,7 @@ void HelloVulkan::bake_default_DescriptorSet() {
         };
 
         VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-        write.dstSet = default_pipe.ds[i];
+        write.dstSet = pipe.ds[i];
         write.dstBinding = 0;
         write.dstArrayElement = 0;
         write.descriptorCount = 1;
@@ -73,10 +68,10 @@ void HelloVulkan::bake_default_DescriptorSet() {
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
 
-    for (uint32_t i = 0; i < default_pipe.ds.size(); i++) {
+    for (uint32_t i = 0; i < pipe.ds.size(); i++) {
         std::vector<VkWriteDescriptorSet> wds(1);
         wds[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        wds[0].dstSet = default_pipe.ds[i];
+        wds[0].dstSet = pipe.ds[i];
         wds[0].dstBinding = 1;
         wds[0].dstArrayElement = 0;
         wds[0].descriptorCount = 1;
@@ -86,7 +81,7 @@ void HelloVulkan::bake_default_DescriptorSet() {
     }
 }
 
-void HelloVulkan::bake_default_Pipeline() {
+void HelloVulkan::bake_default_Pipeline(VulkanPipe & pipe) {
     auto vert = loadSPIRV(dev, "simple.vert.spv");
     auto frag = loadSPIRV(dev, "combined_image_sampler.frag.spv");
 
@@ -212,9 +207,9 @@ void HelloVulkan::bake_default_Pipeline() {
 
     VkPipelineLayoutCreateInfo layout_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     layout_info.setLayoutCount = 1;
-    layout_info.pSetLayouts = &default_pipe.dsl;
+    layout_info.pSetLayouts = &pipe.dsl;
 
-    vkCreatePipelineLayout(dev, &layout_info, nullptr, &default_pipe.pipeline_layout);
+    vkCreatePipelineLayout(dev, &layout_info, nullptr, &pipe.pipeline_layout);
 
     VkGraphicsPipelineCreateInfo pipeline_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
     pipeline_info.stageCount = shader_stage_info.size();
@@ -227,10 +222,10 @@ void HelloVulkan::bake_default_Pipeline() {
     pipeline_info.pDepthStencilState = &ds_state;
     pipeline_info.pColorBlendState = &blend_state;
     pipeline_info.pDynamicState = nullptr;
-    pipeline_info.layout = default_pipe.pipeline_layout;
+    pipeline_info.layout = pipe.pipeline_layout;
     pipeline_info.renderPass = rp;
     pipeline_info.subpass = 0;
-    vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &default_pipe.pipeline);
+    vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipe.pipeline);
     vkDestroyShaderModule(dev, vert, nullptr);
     vkDestroyShaderModule(dev, frag, nullptr);
 }

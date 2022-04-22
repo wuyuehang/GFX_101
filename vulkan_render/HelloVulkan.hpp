@@ -126,21 +126,21 @@ public:
     void bake_imgui();
     void CreateResource();
     /* default pipleine */
-    void bake_default_DescriptorSetLayout();
-    void bake_default_DescriptorSet();
-    void bake_default_Pipeline();
+    void bake_default_DescriptorSetLayout(VulkanPipe &);
+    void bake_default_DescriptorSet(VulkanPipe &);
+    void bake_default_Pipeline(VulkanPipe &);
     /* wireframe pipeline */
-    void bake_wireframe_DescriptorSetLayout();
-    void bake_wireframe_DescriptorSet();
-    void bake_wireframe_Pipeline();
+    void bake_wireframe_DescriptorSetLayout(VulkanPipe &);
+    void bake_wireframe_DescriptorSet(VulkanPipe &);
+    void bake_wireframe_Pipeline(VulkanPipe &);
     /* visualize vertex normal pipeline */
-    void bake_visualize_vertex_normal_DescriptorSetLayout();
-    void bake_visualize_vertex_normal_DescriptorSet();
-    void bake_visualize_vertex_normal_Pipeline();
+    void bake_visualize_vertex_normal_DescriptorSetLayout(VulkanPipe &);
+    void bake_visualize_vertex_normal_DescriptorSet(VulkanPipe &);
+    void bake_visualize_vertex_normal_Pipeline(VulkanPipe &);
     /* phong pipeline */
-    void bake_phong_DescriptorSetLayout();
-    void bake_phong_DescriptorSet();
-    void bake_phong_Pipeline();
+    void bake_phong_DescriptorSetLayout(VulkanPipe &);
+    void bake_phong_DescriptorSet(VulkanPipe &);
+    void bake_phong_Pipeline(VulkanPipe &);
     void clean_VulkanPipe(VulkanPipe p) {
         vkDestroyPipeline(dev, p.pipeline, nullptr);
         vkDestroyPipelineLayout(dev, p.pipeline_layout, nullptr);
@@ -193,8 +193,12 @@ private:
     std::vector<BufferObj *> uniform;
     /* imgui */
     VkDescriptorPool imgui_pool;
-    bool wireframe_mode;
-    bool visualize_vertex_normal_mode;
-    bool phong_mode;
+    enum {
+        DEFAULT_MODE = 0,
+        WIREFRAME_MODE,
+        VISUALIZE_VERTEX_NORMAL_MODE,
+        PHONG_MODE,
+    };
+    int exclusive_mode;
 };
 #endif

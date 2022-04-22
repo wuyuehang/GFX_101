@@ -35,14 +35,14 @@ main : $(obj)
 	g++ $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 spv :
-	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert.glsl -o simple.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert -o simple.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V phong.vert -o phong.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V phong.frag -o phong.frag.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.vert -o visualize_vertex_normal.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.geom -o visualize_vertex_normal.geom.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.frag -o visualize_vertex_normal.frag.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V combined_image_sampler.frag.glsl -o combined_image_sampler.frag.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V wireframe.frag.glsl -o wireframe.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V combined_image_sampler.frag -o combined_image_sampler.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V wireframe.frag -o wireframe.frag.spv
 
 clean:
 	rm -rf $(binary) $(obj)
