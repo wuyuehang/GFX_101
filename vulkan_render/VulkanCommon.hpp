@@ -16,6 +16,7 @@ struct MVP {
 
 struct LIGHT {
     glm::vec3 world_loc; // world location of light, f.inst point light
+    int shiness; // specular
 };
 
 class HelloVulkan;

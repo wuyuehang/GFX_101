@@ -16,6 +16,7 @@ obj = main.o \
 	imgui_widgets.o \
 	tiny_obj_loader.o \
 	trackball.o \
+	Axis.o \
 	Controller.o \
 	Default.o \
 	HelloVulkan.o \
@@ -35,6 +36,8 @@ main : $(obj)
 	g++ $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 spv :
+	$(VK_SDK_PATH)/bin/glslangValidator -V axis.vert -o axis.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V axis.frag -o axis.frag.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert -o simple.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V phong.vert -o phong.vert.spv
 	$(VK_SDK_PATH)/bin/glslangValidator -V phong.frag -o phong.frag.spv

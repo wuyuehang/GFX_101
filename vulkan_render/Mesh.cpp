@@ -89,10 +89,14 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 temp.nor = manual_normal;
             }
 
-            temp.uv = {
-                attrib.texcoords[2 * v0.texcoord_index + 0],
-                1.0 - attrib.texcoords[2 * v0.texcoord_index + 1], // need flip UV for vulkan
-            };
+            if (attrib.texcoords.size() > 0) {
+                temp.uv = {
+                    attrib.texcoords[2 * v0.texcoord_index + 0],
+                    1.0 - attrib.texcoords[2 * v0.texcoord_index + 1], // need flip UV for vulkan
+                };
+            } else {
+                temp.uv = glm::vec2(0.0);
+            }
 
             m_vertices.push_back(temp);
             // process second vertex
@@ -112,10 +116,14 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 temp.nor = manual_normal;
             }
 
-            temp.uv = {
-                attrib.texcoords[2 * v1.texcoord_index + 0],
-                1.0 - attrib.texcoords[2 * v1.texcoord_index + 1], // need flip UV for vulkan
-            };
+            if (attrib.texcoords.size() > 0) {
+                temp.uv = {
+                    attrib.texcoords[2 * v1.texcoord_index + 0],
+                    1.0 - attrib.texcoords[2 * v1.texcoord_index + 1], // need flip UV for vulkan
+                };
+            } else {
+                temp.uv = glm::vec2(0.0);
+            }
 
             m_vertices.push_back(temp);
             // process third vertex
@@ -135,10 +143,14 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 temp.nor = manual_normal;
             }
 
-            temp.uv = {
-                attrib.texcoords[2 * v2.texcoord_index + 0],
-                1.0 - attrib.texcoords[2 * v2.texcoord_index + 1], // need flip UV for vulkan
-            };
+            if (attrib.texcoords.size() > 0) {
+                temp.uv = {
+                    attrib.texcoords[2 * v2.texcoord_index + 0],
+                    1.0 - attrib.texcoords[2 * v2.texcoord_index + 1], // need flip UV for vulkan
+                };
+            } else {
+                temp.uv = glm::vec2(0.0);
+            }
 
             m_vertices.push_back(temp);
             // update boudung box

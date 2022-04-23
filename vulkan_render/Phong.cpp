@@ -38,7 +38,7 @@ void HelloVulkan::bake_phong_DescriptorSet(VulkanPipe & pipe) {
         vkAllocateDescriptorSets(dev, &alloc_info, &pipe.ds[i]);
 
         VkDescriptorBufferInfo buf_info {
-            .buffer = uniform[i]->get_buffer(),
+            .buffer = default_mvp_uniform[i]->get_buffer(),
             .offset = 0,
             .range = sizeof(struct MVP),
         };

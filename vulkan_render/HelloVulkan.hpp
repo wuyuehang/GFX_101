@@ -125,6 +125,10 @@ public:
     void CreateFramebuffer();
     void bake_imgui();
     void CreateResource();
+    /* axis pipleine */
+    void bake_axis_DescriptorSetLayout(VulkanPipe &);
+    void bake_axis_DescriptorSet(VulkanPipe &);
+    void bake_axis_Pipeline(VulkanPipe &);
     /* default pipleine */
     void bake_default_DescriptorSetLayout(VulkanPipe &);
     void bake_default_DescriptorSet(VulkanPipe &);
@@ -147,6 +151,14 @@ public:
         vkDestroyDescriptorSetLayout(dev, p.dsl, nullptr);
         vkFreeDescriptorSets(dev, p.pool, p.ds.size(), p.ds.data());
         vkDestroyDescriptorPool(dev, p.pool, nullptr);
+    }
+    void begin_command_buffer(VkCommandBuffer &cmd) {
+        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        vkBeginCommandBuffer(cmd, &cmdbuf_begin_info);
+    }
+    void end_command_buffer(VkCommandBuffer &cmd) {
+        vkEndCommandBuffer(cmd);
     }
     void BakeCommand(uint32_t frame_nr);
     void HandleInput();
@@ -179,18 +191,23 @@ private:
     std::vector<VkFramebuffer> framebuffers;
     ImageObj *depth;
     /* various pipeline */
+    VulkanPipe axis_pipe;
     VulkanPipe default_pipe;
     VulkanPipe wireframe_pipe;
     VulkanPipe visualize_vertex_normal_pipe;
     VulkanPipe phong_pipe;
+    /* axis */
+    Mesh axis_mesh;
+    BufferObj *axis_vertex;
+    std::vector<BufferObj *> axis_mvp_uniform;
     /* default resource */
     Mesh default_mesh;
     BufferObj *default_vertex;
     ImageObj *default_tex;
     VkSampler default_sampler;
+    std::vector<BufferObj *> default_mvp_uniform;
     /* light */
     std::vector<BufferObj *> light;
-    std::vector<BufferObj *> uniform;
     /* imgui */
     VkDescriptorPool imgui_pool;
     enum {
@@ -200,5 +217,7 @@ private:
         PHONG_MODE,
     };
     int exclusive_mode;
+    int shiness;
+    bool display_axis;
 };
 #endif

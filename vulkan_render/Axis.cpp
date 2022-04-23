@@ -1,10 +1,9 @@
 #include "HelloVulkan.hpp"
 
-void HelloVulkan::bake_default_DescriptorSetLayout(VulkanPipe & pipe) {
+void HelloVulkan::bake_axis_DescriptorSetLayout(VulkanPipe & pipe) {
     /* binding, descriptorType, descriptorCount, stageFlags, pImmutableSamplers */
     std::vector<VkDescriptorSetLayoutBinding> bindings {
         { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }, // Model-View-Proj
-        { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }, // Texture2D
     };
 
     VkDescriptorSetLayoutCreateInfo dsl_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -13,15 +12,12 @@ void HelloVulkan::bake_default_DescriptorSetLayout(VulkanPipe & pipe) {
     vkCreateDescriptorSetLayout(dev, &dsl_info, nullptr, &pipe.dsl);
 }
 
-void HelloVulkan::bake_default_DescriptorSet(VulkanPipe & pipe) {
+void HelloVulkan::bake_axis_DescriptorSet(VulkanPipe & pipe) {
     pipe.ds.resize(m_max_inflight_frames);
 
-    std::vector<VkDescriptorPoolSize> pool_size(2);
+    std::vector<VkDescriptorPoolSize> pool_size(1);
     pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     pool_size[0].descriptorCount = pipe.ds.size();
-
-    pool_size[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_size[1].descriptorCount = pipe.ds.size(); // Even sampler doesn't change over frames, still need reserve the same number as DescriptorSet is per frame.
 
     VkDescriptorPoolCreateInfo pool_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -38,7 +34,7 @@ void HelloVulkan::bake_default_DescriptorSet(VulkanPipe & pipe) {
         vkAllocateDescriptorSets(dev, &alloc_info, &pipe.ds[i]);
 
         VkDescriptorBufferInfo buf_info {
-            .buffer = default_mvp_uniform[i]->get_buffer(),
+            .buffer = axis_mvp_uniform[i]->get_buffer(),
             .offset = 0,
             .range = sizeof(struct MVP),
         };
@@ -53,37 +49,11 @@ void HelloVulkan::bake_default_DescriptorSet(VulkanPipe & pipe) {
 
         vkUpdateDescriptorSets(dev, 1, &write, 0, nullptr);
     }
-
-    VkSamplerCreateInfo sampler_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    sampler_info.magFilter = VK_FILTER_LINEAR;
-    sampler_info.minFilter = VK_FILTER_LINEAR;
-    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    vkCreateSampler(dev, &sampler_info, nullptr, &default_sampler);
-    VkDescriptorImageInfo img_info {
-        .sampler = default_sampler,
-        .imageView = default_tex->get_image_view(),
-        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    };
-
-    for (uint32_t i = 0; i < pipe.ds.size(); i++) {
-        std::vector<VkWriteDescriptorSet> wds(1);
-        wds[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        wds[0].dstSet = pipe.ds[i];
-        wds[0].dstBinding = 1;
-        wds[0].dstArrayElement = 0;
-        wds[0].descriptorCount = 1;
-        wds[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        wds[0].pImageInfo = &img_info;
-        vkUpdateDescriptorSets(dev, wds.size(), wds.data(), 0, nullptr);
-    }
 }
 
-void HelloVulkan::bake_default_Pipeline(VulkanPipe & pipe) {
-    auto vert = loadSPIRV(dev, "simple.vert.spv");
-    auto frag = loadSPIRV(dev, "combined_image_sampler.frag.spv");
+void HelloVulkan::bake_axis_Pipeline(VulkanPipe & pipe) {
+    auto vert = loadSPIRV(dev, "axis.vert.spv");
+    auto frag = loadSPIRV(dev, "axis.frag.spv");
 
     VkPipelineShaderStageCreateInfo vert_stage_info { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
     vert_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;

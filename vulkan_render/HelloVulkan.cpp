@@ -8,7 +8,7 @@
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new FPSController(this)) {
 #else
 HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballController(this)),
-    m_current_frame(0) {
+    m_current_frame(0), display_axis(false) {
 #endif
     InitGLFW();
     CreateInstance();
@@ -27,6 +27,11 @@ HelloVulkan::HelloVulkan() : vulkan_swapchain(this), ctrl(new TrackballControlle
     bake_imgui();
 
     CreateResource();
+    {
+        bake_axis_DescriptorSetLayout(axis_pipe);
+        bake_axis_DescriptorSet(axis_pipe);
+        bake_axis_Pipeline(axis_pipe);
+    }
     {
         bake_default_DescriptorSetLayout(default_pipe);
         bake_default_DescriptorSet(default_pipe);
@@ -61,19 +66,29 @@ HelloVulkan::~HelloVulkan() {
     clean_VulkanPipe(visualize_vertex_normal_pipe);
     clean_VulkanPipe(wireframe_pipe);
     clean_VulkanPipe(default_pipe);
+    clean_VulkanPipe(axis_pipe);
 
-    // UNIFORM
-    for (const auto& it : uniform) {
-        vkFreeMemory(dev, it->get_memory(), nullptr);
-        vkDestroyBuffer(dev, it->get_buffer(), nullptr);
-    }
     // LIGHT
     for (const auto& it : light) {
         vkFreeMemory(dev, it->get_memory(), nullptr);
         vkDestroyBuffer(dev, it->get_buffer(), nullptr);
     }
-    // VERTEX
+    // DEFAULT VERTEX
+    {
+        for (const auto& it : default_mvp_uniform) {
+            vkFreeMemory(dev, it->get_memory(), nullptr);
+            vkDestroyBuffer(dev, it->get_buffer(), nullptr);
+        }
+    }
     delete default_vertex;
+    // AXIS
+    {
+        delete axis_vertex;
+        for (const auto& it : axis_mvp_uniform) {
+            vkFreeMemory(dev, it->get_memory(), nullptr);
+            vkDestroyBuffer(dev, it->get_buffer(), nullptr);
+        }
+    }
 
     for (auto& it : framebuffers) {
         vkDestroyFramebuffer(dev, it, nullptr);
@@ -254,18 +269,38 @@ void HelloVulkan::bake_imgui() {
 }
 
 void HelloVulkan::CreateResource() {
-    // VERTEX
-    glm::mat4 pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(90.0), glm::vec3(1.0, 0.0, 0.0));
-    pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(-90.0), glm::vec3(0.0, 1.0, 0.0)) * pre_rotation_mat;
-    default_mesh.load("./assets/obj/Buddha.obj", pre_rotation_mat);
-    default_vertex = new BufferObj(this);
-    default_vertex->init(default_mesh.get_vertices().size() * sizeof(Mesh::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    default_vertex->upload(default_mesh.get_vertices().data(), default_mesh.get_vertices().size() * sizeof(Mesh::Vertex));
-    // UNIFORM
-    uniform.resize(m_max_inflight_frames);
-    for (auto i = 0; i < uniform.size(); i++) {
-        uniform[i] = new BufferObj(this);
-        uniform[i]->init(sizeof(struct MVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    // AXIS
+    {
+        glm::mat4 pre_rotation_mat = glm::rotate(glm::scale(glm::mat4(1.0), glm::vec3(1.25)), (float)glm::radians(180.0), glm::vec3(1.0, 0.0, 0.0));
+        axis_mesh.load("./assets/obj/axis.obj", pre_rotation_mat);
+        axis_vertex = new BufferObj(this);
+        axis_vertex->init(axis_mesh.get_vertices().size() * sizeof(Mesh::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        axis_vertex->upload(axis_mesh.get_vertices().data(), axis_mesh.get_vertices().size() * sizeof(Mesh::Vertex));
+
+        axis_mvp_uniform.resize(m_max_inflight_frames);
+        for (auto i = 0; i < axis_mvp_uniform.size(); i++) {
+            axis_mvp_uniform[i] = new BufferObj(this);
+            axis_mvp_uniform[i]->init(sizeof(struct MVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        }
+    }
+    // DEFAULT OBJECT
+    {
+        glm::mat4 pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(90.0), glm::vec3(1.0, 0.0, 0.0));
+        pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(-90.0), glm::vec3(0.0, 1.0, 0.0)) * pre_rotation_mat;
+        default_mesh.load("./assets/obj/Buddha.obj", pre_rotation_mat);
+        default_vertex = new BufferObj(this);
+        default_vertex->init(default_mesh.get_vertices().size() * sizeof(Mesh::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        default_vertex->upload(default_mesh.get_vertices().data(), default_mesh.get_vertices().size() * sizeof(Mesh::Vertex));
+
+        default_mvp_uniform.resize(m_max_inflight_frames);
+        for (auto i = 0; i < default_mvp_uniform.size(); i++) {
+            default_mvp_uniform[i] = new BufferObj(this);
+            default_mvp_uniform[i]->init(sizeof(struct MVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        }
+
+        default_tex = new ImageObj(this);
+        default_tex->bake("./assets/obj/Buddha.jpg");
+        default_tex->transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
     }
     // LIGHT
     light.resize(m_max_inflight_frames);
@@ -273,30 +308,23 @@ void HelloVulkan::CreateResource() {
         light[i] = new BufferObj(this);
         light[i]->init(sizeof(struct LIGHT), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
-    // TEXTURE
-    default_tex = new ImageObj(this);
-    default_tex->bake("./assets/obj/Buddha.jpg");
-    default_tex->transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 }
 
 void HelloVulkan::BakeCommand(uint32_t frame_nr) {
+    begin_command_buffer(cmdbuf[frame_nr]);
+
+    VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+    begin_renderpass_info.renderPass = rp;
+    begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+    begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+    begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+    std::array<VkClearValue, 2> clear_value {};
+    clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
+    clear_value[1].depthStencil.depth = 1.0;
+    begin_renderpass_info.clearValueCount = clear_value.size();
+    begin_renderpass_info.pClearValues = clear_value.data();
+
     if (exclusive_mode == PHONG_MODE) {
-        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
-
-        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-        begin_renderpass_info.renderPass = rp;
-        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
-        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
-        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
-
-        std::array<VkClearValue, 2> clear_value {};
-        clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
-        clear_value[1].depthStencil.depth = 1.0;
-        begin_renderpass_info.clearValueCount = clear_value.size();
-        begin_renderpass_info.pClearValues = clear_value.data();
-
         vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, phong_pipe.pipeline);
         VkDeviceSize offsets[] { 0 };
@@ -304,22 +332,7 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, phong_pipe.pipeline_layout, 0, 1, &phong_pipe.ds[frame_nr], 0, nullptr);
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
     } else if (exclusive_mode == WIREFRAME_MODE) {
-        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
-
-        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-        begin_renderpass_info.renderPass = rp;
-        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
-        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
-        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
-
-        std::array<VkClearValue, 2> clear_value {};
         clear_value[0].color = VkClearColorValue{ 1.0, 1.0, 1.0, 1.0 };
-        clear_value[1].depthStencil.depth = 1.0;
-        begin_renderpass_info.clearValueCount = clear_value.size();
-        begin_renderpass_info.pClearValues = clear_value.data();
-
         vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipe.pipeline);
         VkDeviceSize offsets[] { 0 };
@@ -327,22 +340,6 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe_pipe.pipeline_layout, 0, 1, &wireframe_pipe.ds[frame_nr], 0, nullptr);
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
     } else if (exclusive_mode == VISUALIZE_VERTEX_NORMAL_MODE) {
-        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
-
-        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-        begin_renderpass_info.renderPass = rp;
-        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
-        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
-        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
-
-        std::array<VkClearValue, 2> clear_value {};
-        clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
-        clear_value[1].depthStencil.depth = 1.0;
-        begin_renderpass_info.clearValueCount = clear_value.size();
-        begin_renderpass_info.pClearValues = clear_value.data();
-
         vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline);
         VkDeviceSize offsets[] { 0 };
@@ -358,22 +355,6 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
             vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
         }
     } else if (exclusive_mode == DEFAULT_MODE) {
-        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        vkBeginCommandBuffer(cmdbuf[frame_nr], &cmdbuf_begin_info);
-
-        VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-        begin_renderpass_info.renderPass = rp;
-        begin_renderpass_info.framebuffer = framebuffers[frame_nr];
-        begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
-        begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
-
-        std::array<VkClearValue, 2> clear_value {};
-        clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
-        clear_value[1].depthStencil.depth = 1.0;
-        begin_renderpass_info.clearValueCount = clear_value.size();
-        begin_renderpass_info.pClearValues = clear_value.data();
-
         vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, default_pipe.pipeline);
         VkDeviceSize offsets[] { 0 };
@@ -382,15 +363,27 @@ void HelloVulkan::BakeCommand(uint32_t frame_nr) {
         vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
     }
 
+    if (display_axis) {
+        vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, axis_pipe.pipeline);
+        VkDeviceSize offsets[] { 0 };
+        vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &axis_vertex->get_buffer(), offsets);
+        vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, axis_pipe.pipeline_layout, 0, 1, &axis_pipe.ds[frame_nr], 0, nullptr);
+        vkCmdDraw(cmdbuf[frame_nr], axis_mesh.get_vertices().size(), 1, 0, 0);
+    }
     // Build ImGui commands
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmdbuf[frame_nr]);
 
     vkCmdEndRenderPass(cmdbuf[frame_nr]);
-    vkEndCommandBuffer(cmdbuf[frame_nr]);
+    end_command_buffer(cmdbuf[frame_nr]);
 }
 
 void HelloVulkan::Gameloop() {
+    // initialize ImGui tuning values
+    {
+        exclusive_mode = DEFAULT_MODE;
+        shiness = 64;
+    }
     while (!glfwWindowShouldClose(window)) {
         {
             ImGui_ImplVulkan_NewFrame();
@@ -401,10 +394,12 @@ void HelloVulkan::Gameloop() {
             ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); // Pin the UI
             ImGui::SetNextWindowSize(ImVec2(250, 200), ImGuiCond_Always);
             ImGui::Begin("Hello, Vulkan!");
+            ImGui::Checkbox("Axis", &display_axis);
             ImGui::RadioButton("Default", &exclusive_mode, DEFAULT_MODE);
             ImGui::RadioButton("Wireframe", &exclusive_mode, WIREFRAME_MODE);
             ImGui::RadioButton("Vertex Normal", &exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
             ImGui::RadioButton("Phong", &exclusive_mode, PHONG_MODE);
+            ImGui::SliderInt("Shiness", &shiness, 16, 256);
             ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
             ImGui::Render();
@@ -425,15 +420,28 @@ void HelloVulkan::Gameloop() {
             ubo.proj = ctrl->get_proj();
 
             void *buf_ptr;
-            vkMapMemory(dev, uniform[image_index]->get_memory(), 0, sizeof(ubo), 0, &buf_ptr);
+            vkMapMemory(dev, default_mvp_uniform[image_index]->get_memory(), 0, sizeof(ubo), 0, &buf_ptr);
             memcpy(buf_ptr, &ubo, sizeof(ubo));
-            vkUnmapMemory(dev, uniform[image_index]->get_memory());
+            vkUnmapMemory(dev, default_mvp_uniform[image_index]->get_memory());
+        }
+        {
+            // axis
+            MVP ubo {};
+            ubo.model = ctrl->get_model() * axis_mesh.get_model_mat();
+            ubo.view = ctrl->get_view();
+            ubo.proj = ctrl->get_proj();
+
+            void *buf_ptr;
+            vkMapMemory(dev, axis_mvp_uniform[image_index]->get_memory(), 0, sizeof(ubo), 0, &buf_ptr);
+            memcpy(buf_ptr, &ubo, sizeof(ubo));
+            vkUnmapMemory(dev, axis_mvp_uniform[image_index]->get_memory());
         }
         {
             // handle light position
             LIGHT lt {};
             lt.world_loc = glm::vec3(0.0, 0.0, 15.0); // can change dynamically
             lt.world_loc = glm::mat3(ctrl->get_view()) * lt.world_loc; // calculate in viewspace
+            lt.shiness = shiness;
 
             void *buf_ptr;
             vkMapMemory(dev, light[image_index]->get_memory(), 0, sizeof(lt), 0, &buf_ptr);
