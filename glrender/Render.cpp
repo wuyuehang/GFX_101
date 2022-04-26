@@ -11,6 +11,7 @@ Render::Render() :m_width(1280), m_height(720), ctrl(new TrackballController(thi
     CreateResource();
     BakeDefaultPipeline(VBO);
     BakeWireframePipeline(VBO);
+    BakePhongPipeline(VBO);
 }
 
 Render::~Render() {
@@ -54,6 +55,17 @@ void Render::BakeCommand() {
         GLuint vao = vaos.find("WIREFRAME")->second;
         glBindVertexArray(vao);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    } else if (exclusive_mode == PHONG_MODE) {
+        GLuint prog = programs.find("PHONG")->second;
+        UpdateMVPUBO(UBO, prog, mvp_mats);
+        glm::vec3 light_world_loc = glm::vec3(0.0, 0.0, 3.0);
+        light_world_loc = glm::mat3(ctrl->get_view()) * light_world_loc;
+        glProgramUniform3fv(prog, glGetUniformLocation(prog, "view_loc"), 1, &light_world_loc[0]);
+        glUseProgram(prog);
+        GLuint vao = vaos.find("PHONG")->second;
+        glBindVertexArray(vao);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
     } else {
         GLuint prog = programs.find("DEFAULT")->second;
