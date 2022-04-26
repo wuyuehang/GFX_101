@@ -3,7 +3,9 @@ bin = main
 
 src = main.cpp \
 	Common.cpp \
-	Render.cpp
+	Controller.cpp \
+	Render.cpp \
+	RenderCore.cpp
 
 src += $(thirdparty)/imgui.cpp \
 	$(thirdparty)/imgui_draw.cpp \
@@ -12,10 +14,11 @@ src += $(thirdparty)/imgui.cpp \
 	$(thirdparty)/imgui_tables.cpp \
 	$(thirdparty)/imgui_widgets.cpp
 
+src += $(thirdparty)/trackball.cc
+
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat
-CXXFLAGS += `pkg-config --cflags glfw3` -lGL `pkg-config --static --libs glfw3`
+CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl
 
 CFLAGS = $(CXXFLAGS)
 
@@ -24,6 +27,9 @@ CFLAGS = $(CXXFLAGS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(thirdparty)/%.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o:$(thirdparty)/%.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(bin): $(obj)

@@ -1,42 +1,73 @@
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include "Common.hpp"
+#include "Controller.hpp"
 #include "Render.hpp"
+#include <cstring>
+#include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
 
-Render::Render() : m_width(1280), m_height(720) {
+Render::Render() :m_width(1280), m_height(720), ctrl(new TrackballController(this)) {
     InitGLFW();
     InitImGui();
+    CreateResource();
 }
 
 Render::~Render() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
     glfwDestroyWindow(m_window);
     glfwTerminate();
+    delete ctrl;
 }
 
-void Render::InitGLFW() {
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_window = glfwCreateWindow(m_width, m_height, "HelloOpenGL", nullptr, nullptr);
-    glfwMakeContextCurrent(m_window);
+void Render::CreateResource() {
+    float vertices[] = {
+        -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
+        0.5, -0.5, 0.0, 0.0, 1.0, 0.0,
+        0.0, 0.5, 0.0, 0.0, 0.0, 1.0,
+    };
+
+    GLuint vbo, vao;
+
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (const void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (const void*)12);
+    glEnableVertexAttribArray(1);
+
+    VS = BuildShaderProgram("./shaders/simple.vert", GL_VERTEX_SHADER);
+    GLuint FS = BuildShaderProgram("./shaders/simple.frag", GL_FRAGMENT_SHADER);
+    GLuint prog = BuildProgramPipeline();
+
+    glGenBuffers(1, &UBO);
+
+    glUseProgramStages(prog, GL_VERTEX_SHADER_BIT, VS);
+    glUseProgramStages(prog, GL_FRAGMENT_SHADER_BIT, FS);
 }
 
-void Render::InitImGui() {
-    // setup ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+void Render::BakeCommand() {
+    ctrl->handle_input();
+    {
+        MVP mvp_mats;
+        mvp_mats.model = ctrl->get_model();
+        mvp_mats.view = ctrl->get_view();
+        mvp_mats.proj = ctrl->get_proj();
 
-    ImGui::StyleColorsDark();
+        UpdateMVPUBO(UBO, VS, mvp_mats);
+    }
+    glViewport(0, 0, m_width, m_height);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClearDepthf(1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    const char* glsl_version = "#version 430 core";
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void Render::Gameloop() {
@@ -54,9 +85,7 @@ void Render::Gameloop() {
         ImGui::End();
         ImGui::Render();
 
-        glViewport(0, 0, m_width, m_height);
-        glClearColor(1.0, 1.0, 1.0, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        BakeCommand();
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(m_window);
