@@ -24,6 +24,7 @@ public:
     void CreateResource();
     void BakeDefaultPipeline(GLuint VBO);
     void BakeWireframePipeline(GLuint VBO);
+    void BakeVVNPipeline(GLuint VBO);
     void BakePhongPipeline(GLuint VBO);
     void BakeCommand();
     void Gameloop();

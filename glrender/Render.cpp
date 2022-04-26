@@ -11,6 +11,7 @@ Render::Render() :m_width(1280), m_height(720), ctrl(new TrackballController(thi
     CreateResource();
     BakeDefaultPipeline(VBO);
     BakeWireframePipeline(VBO);
+    BakeVVNPipeline(VBO);
     BakePhongPipeline(VBO);
 }
 
@@ -67,6 +68,14 @@ void Render::BakeCommand() {
         glBindVertexArray(vao);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    } else if (exclusive_mode == VISUALIZE_VERTEX_NORMAL_MODE) {
+        GLuint prog = programs.find("VISUALIZE_VERTEX_NORMAL")->second;
+        UpdateMVPUBO(UBO, prog, mvp_mats);
+        glUseProgram(prog);
+        GLuint vao = vaos.find("VISUALIZE_VERTEX_NORMAL")->second;
+        glBindVertexArray(vao);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
     } else {
         GLuint prog = programs.find("DEFAULT")->second;
         UpdateMVPUBO(UBO, prog, mvp_mats);
@@ -97,6 +106,7 @@ void Render::Gameloop() {
         ImGui::RadioButton("Wireframe", &exclusive_mode, WIREFRAME_MODE);
         ImGui::RadioButton("Vertex Normal", &exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
         ImGui::RadioButton("Phong", &exclusive_mode, PHONG_MODE);
+        ImGui::Text("Eye @ (%.1f, %.1f, %.1f)", ctrl->get_eye().x, ctrl->get_eye().y, ctrl->get_eye().z);
         ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
         ImGui::Render();
