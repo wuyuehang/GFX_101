@@ -9,6 +9,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "Mesh.hpp"
 
 class Controller;
 
@@ -31,5 +32,6 @@ private:
     Controller *ctrl;
     GLuint UBO;
     GLuint VS;
+    Mesh mesh;
 };
 #endif

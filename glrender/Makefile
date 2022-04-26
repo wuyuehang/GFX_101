@@ -4,6 +4,7 @@ bin = main
 src = main.cpp \
 	Common.cpp \
 	Controller.cpp \
+	Mesh.cpp \
 	Render.cpp \
 	RenderCore.cpp
 
@@ -15,6 +16,7 @@ src += $(thirdparty)/imgui.cpp \
 	$(thirdparty)/imgui_widgets.cpp
 
 src += $(thirdparty)/trackball.cc
+src += $(thirdparty)/tiny_obj_loader.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 

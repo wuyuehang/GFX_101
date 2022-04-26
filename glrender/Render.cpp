@@ -22,25 +22,22 @@ Render::~Render() {
 }
 
 void Render::CreateResource() {
-    float vertices[] = {
-        -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
-        0.5, -0.5, 0.0, 0.0, 1.0, 0.0,
-        0.0, 0.5, 0.0, 0.0, 0.0, 1.0,
-    };
-
+    mesh.load("./assets/obj/bunny.obj", glm::mat4(1.0));
     GLuint vbo, vao;
-
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Mesh::Vertex) * mesh.get_vertices().size(), mesh.get_vertices().data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (const void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, pos));
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (const void*)12);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, nor));
     glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, uv));
+    glEnableVertexAttribArray(2);
 
     VS = BuildShaderProgram("./shaders/simple.vert", GL_VERTEX_SHADER);
     GLuint FS = BuildShaderProgram("./shaders/simple.frag", GL_FRAGMENT_SHADER);
@@ -56,18 +53,20 @@ void Render::BakeCommand() {
     ctrl->handle_input();
     {
         MVP mvp_mats;
-        mvp_mats.model = ctrl->get_model();
+        mvp_mats.model = ctrl->get_model() * mesh.get_model_mat();
         mvp_mats.view = ctrl->get_view();
         mvp_mats.proj = ctrl->get_proj();
 
         UpdateMVPUBO(UBO, VS, mvp_mats);
     }
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glClearDepthf(1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
 }
 
 void Render::Gameloop() {

@@ -89,6 +89,7 @@ void UpdateMVPUBO(GLuint ubo, GLuint prog, MVP & mvp) {
     glGetActiveUniformsiv(prog, names.size(), indices.data(), GL_UNIFORM_SIZE, array_sizes.data());
     glGetActiveUniformsiv(prog, names.size(), indices.data(), GL_UNIFORM_TYPE, types.data());
 
+#if 0
     for (int i = 0; i < 3; i++) {
         std::cout << names[i] << std::endl;
         std::cout << "indice : " << indices[i] << std::endl;
@@ -96,6 +97,7 @@ void UpdateMVPUBO(GLuint ubo, GLuint prog, MVP & mvp) {
         std::cout << "array  : " << array_sizes[i] << std::endl;
         std::cout << "type   : " << types[i] << std::endl;
     }
+#endif
 
     GLubyte *buffer = (GLubyte *)malloc(ubo_size);
     std::memcpy(buffer + offsets[0], &mvp.model[0][0], array_sizes[0] * sizeof(glm::mat4));
