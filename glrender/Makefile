@@ -5,6 +5,7 @@ src = main.cpp \
 	Common.cpp \
 	Controller.cpp \
 	Mesh.cpp \
+	Pipelines.cpp \
 	Render.cpp \
 	RenderCore.cpp
 

@@ -9,6 +9,8 @@ Render::Render() :m_width(1280), m_height(720), ctrl(new TrackballController(thi
     InitGLFW();
     InitImGui();
     CreateResource();
+    BakeDefaultPipeline(VBO);
+    BakeWireframePipeline(VBO);
 }
 
 Render::~Render() {
@@ -23,42 +25,21 @@ Render::~Render() {
 
 void Render::CreateResource() {
     mesh.load("./assets/obj/bunny.obj", glm::mat4(1.0));
-    GLuint vbo, vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Mesh::Vertex) * mesh.get_vertices().size(), mesh.get_vertices().data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, pos));
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, nor));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, uv));
-    glEnableVertexAttribArray(2);
-
-    VS = BuildShaderProgram("./shaders/simple.vert", GL_VERTEX_SHADER);
-    GLuint FS = BuildShaderProgram("./shaders/simple.frag", GL_FRAGMENT_SHADER);
-    GLuint prog = BuildProgramPipeline();
-
     glGenBuffers(1, &UBO);
-
-    glUseProgramStages(prog, GL_VERTEX_SHADER_BIT, VS);
-    glUseProgramStages(prog, GL_FRAGMENT_SHADER_BIT, FS);
 }
 
 void Render::BakeCommand() {
     ctrl->handle_input();
-    {
-        MVP mvp_mats;
-        mvp_mats.model = ctrl->get_model() * mesh.get_model_mat();
-        mvp_mats.view = ctrl->get_view();
-        mvp_mats.proj = ctrl->get_proj();
 
-        UpdateMVPUBO(UBO, VS, mvp_mats);
-    }
+    MVP mvp_mats;
+    mvp_mats.model = ctrl->get_model() * mesh.get_model_mat();
+    mvp_mats.view = ctrl->get_view();
+    mvp_mats.proj = ctrl->get_proj();
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glViewport(0, 0, m_width, m_height);
@@ -66,10 +47,30 @@ void Render::BakeCommand() {
     glClearDepthf(1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    if (exclusive_mode == WIREFRAME_MODE) {
+        GLuint prog = programs.find("WIREFRAME")->second;
+        UpdateMVPUBO(UBO, prog, mvp_mats);
+        glUseProgram(prog);
+        GLuint vao = vaos.find("WIREFRAME")->second;
+        glBindVertexArray(vao);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    } else {
+        GLuint prog = programs.find("DEFAULT")->second;
+        UpdateMVPUBO(UBO, prog, mvp_mats);
+        glUseProgram(prog);
+        GLuint vao = vaos.find("DEFAULT")->second;
+        glBindVertexArray(vao);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    }
+    glBindVertexArray(0);
 }
 
 void Render::Gameloop() {
+    {
+        exclusive_mode = DEFAULT_MODE;
+    }
     while (!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
         ImGui_ImplOpenGL3_NewFrame();
@@ -77,9 +78,13 @@ void Render::Gameloop() {
         ImGui::NewFrame();
 
         // describe the ImGui UI
-        ImGui::Begin("Hello, OpenGL!");
         ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); // Pin the UI
         ImGui::SetNextWindowSize(ImVec2(250, 200), ImGuiCond_Always);
+        ImGui::Begin("Hello, OpenGL!");
+        ImGui::RadioButton("Default", &exclusive_mode, DEFAULT_MODE);
+        ImGui::RadioButton("Wireframe", &exclusive_mode, WIREFRAME_MODE);
+        ImGui::RadioButton("Vertex Normal", &exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
+        ImGui::RadioButton("Phong", &exclusive_mode, PHONG_MODE);
         ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
         ImGui::Render();
