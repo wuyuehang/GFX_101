@@ -11,6 +11,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "Mesh.hpp"
+#include "Program.hpp"
 
 class Controller;
 
@@ -44,8 +45,10 @@ private:
     Controller *ctrl;
     GLuint UBO;
     GLuint VBO;
+    GLuint TEX;
     Mesh mesh;
+    float shiness;
     std::map<std::string, GLuint> vaos;
-    std::map<std::string, GLuint> programs;
+    std::map<std::string, Program *> progs;
 };
 #endif

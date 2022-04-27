@@ -16,15 +16,12 @@ void Render::BakeDefaultPipeline(GLuint VBO) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, uv));
     glEnableVertexAttribArray(2);
 
-    vaos.insert({"DEFAULT", VAO});
+    vaos.insert({ "DEFAULT", VAO });
 
     glBindVertexArray(0);
 
-    GLuint VS = BuildShader("./shaders/simple.vert", GL_VERTEX_SHADER);
-    GLuint FS = BuildShader("./shaders/simple.frag", GL_FRAGMENT_SHADER);
-    std::vector<GLuint> shaders { VS, FS };
-    GLuint prog = BuildProgram(shaders);
-    programs.insert({ "DEFAULT", prog });
+    std::vector<std::string> shaders { "./shaders/simple.vert", "./shaders/simple.frag" };
+    progs.insert({ "DEFAULT", new Program(shaders) });
 }
 
 void Render::BakeWireframePipeline(GLuint VBO) {
@@ -42,15 +39,12 @@ void Render::BakeWireframePipeline(GLuint VBO) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, uv));
     glEnableVertexAttribArray(2);
 
-    vaos.insert({"WIREFRAME", VAO});
+    vaos.insert({ "WIREFRAME", VAO });
 
     glBindVertexArray(0);
 
-    GLuint VS = BuildShader("./shaders/wireframe.vert", GL_VERTEX_SHADER);
-    GLuint FS = BuildShader("./shaders/wireframe.frag", GL_FRAGMENT_SHADER);
-    std::vector<GLuint> shaders { VS, FS };
-    GLuint prog = BuildProgram(shaders);
-    programs.insert({ "WIREFRAME", prog });
+    std::vector<std::string> shaders { "./shaders/wireframe.vert", "./shaders/wireframe.frag" };
+    progs.insert({ "WIREFRAME", new Program(shaders) });
 }
 
 void Render::BakePhongPipeline(GLuint VBO) {
@@ -68,15 +62,12 @@ void Render::BakePhongPipeline(GLuint VBO) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, uv));
     glEnableVertexAttribArray(2);
 
-    vaos.insert({"PHONG", VAO});
+    vaos.insert({ "PHONG", VAO });
 
     glBindVertexArray(0);
 
-    GLuint VS = BuildShader("./shaders/phong.vert", GL_VERTEX_SHADER);
-    GLuint FS = BuildShader("./shaders/phong.frag", GL_FRAGMENT_SHADER);
-    std::vector<GLuint> shaders { VS, FS };
-    GLuint prog = BuildProgram(shaders);
-    programs.insert({ "PHONG", prog });
+    std::vector<std::string> shaders { "./shaders/phong.vert", "./shaders/phong.frag" };
+    progs.insert({ "PHONG", new Program(shaders) });
 }
 
 void Render::BakeVVNPipeline(GLuint VBO) {
@@ -94,14 +85,12 @@ void Render::BakeVVNPipeline(GLuint VBO) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (const void*)offsetof(Mesh::Vertex, uv));
     glEnableVertexAttribArray(2);
 
-    vaos.insert({"VISUALIZE_VERTEX_NORMAL", VAO});
+    vaos.insert({ "VISUALIZE_VERTEX_NORMAL", VAO });
 
     glBindVertexArray(0);
 
-    GLuint VS = BuildShader("./shaders/visualize_vertex_normal.vert", GL_VERTEX_SHADER);
-    GLuint GS = BuildShader("./shaders/visualize_vertex_normal.geom", GL_GEOMETRY_SHADER);
-    GLuint FS = BuildShader("./shaders/visualize_vertex_normal.frag", GL_FRAGMENT_SHADER);
-    std::vector<GLuint> shaders { VS, GS, FS };
-    GLuint prog = BuildProgram(shaders);
-    programs.insert({ "VISUALIZE_VERTEX_NORMAL", prog });
+    std::vector<std::string> shaders { "./shaders/visualize_vertex_normal.vert",
+        "./shaders/visualize_vertex_normal.geom",
+        "./shaders/visualize_vertex_normal.frag" };
+    progs.insert({ "VISUALIZE_VERTEX_NORMAL", new Program(shaders) });
 }

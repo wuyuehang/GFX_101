@@ -6,6 +6,7 @@ src = main.cpp \
 	Controller.cpp \
 	Mesh.cpp \
 	Pipelines.cpp \
+	Program.cpp \
 	Render.cpp \
 	RenderCore.cpp
 
@@ -21,7 +22,7 @@ src += $(thirdparty)/tiny_obj_loader.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl
+CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl -lSOIL
 
 CFLAGS = $(CXXFLAGS)
 

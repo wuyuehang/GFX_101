@@ -6,6 +6,7 @@ layout (location = 1) in vec3 vout_Nor; // normal in view space
 layout (location = 0) out vec4 SV_Target;
 
 uniform vec3 view_loc;
+uniform float shiness;
 
 void main()
 {
@@ -17,7 +18,7 @@ void main()
     // since we're in view coordinate space, the view is origin at 0
     vec3 view_dir = normalize( - vout_Pos);
     vec3 reflect_dir = normalize(reflect(-light_dir, vout_Nor));
-    float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), 1.0);
+    float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), shiness);
 
     SV_Target = vec4(specular) + vec4(diffuse);
 }

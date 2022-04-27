@@ -4,6 +4,7 @@
 #include <cstring>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <SOIL/SOIL.h>
 
 Render::Render() :m_width(1280), m_height(720), ctrl(new TrackballController(this)) {
     InitGLFW();
@@ -20,18 +21,32 @@ Render::~Render() {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
+    for (auto it : progs) {
+        delete it.second;
+    }
+
     glfwDestroyWindow(m_window);
     glfwTerminate();
     delete ctrl;
 }
 
 void Render::CreateResource() {
-    mesh.load("./assets/obj/bunny.obj", glm::mat4(1.0));
+    glm::mat4 pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(-90.0), glm::vec3(1.0, 0.0, 0.0));
+    pre_rotation_mat = glm::rotate(glm::mat4(1.0), (float)glm::radians(-90.0), glm::vec3(0.0, 1.0, 0.0)) * pre_rotation_mat;
+    mesh.load("./assets/obj/Buddha.obj", pre_rotation_mat);
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Mesh::Vertex) * mesh.get_vertices().size(), mesh.get_vertices().data(), GL_STATIC_DRAW);
 
     glGenBuffers(1, &UBO);
+
+    int w, h, c;
+    uint8_t *ptr = SOIL_load_image("./assets/obj/Buddha.jpg", &w, &h, &c, SOIL_LOAD_RGBA);
+    assert(ptr);
+    glGenTextures(1, &TEX);
+    glBindTexture(GL_TEXTURE_2D, TEX);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+    SOIL_free_image_data(ptr);
 }
 
 void Render::BakeCommand() {
@@ -50,36 +65,42 @@ void Render::BakeCommand() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (exclusive_mode == WIREFRAME_MODE) {
-        GLuint prog = programs.find("WIREFRAME")->second;
-        UpdateMVPUBO(UBO, prog, mvp_mats);
-        glUseProgram(prog);
+        Program *pg = progs.find("WIREFRAME")->second;
+        pg->updateMVPUBO(UBO, mvp_mats);
+        pg->use();
         GLuint vao = vaos.find("WIREFRAME")->second;
         glBindVertexArray(vao);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
     } else if (exclusive_mode == PHONG_MODE) {
-        GLuint prog = programs.find("PHONG")->second;
-        UpdateMVPUBO(UBO, prog, mvp_mats);
+        Program *pg = progs.find("PHONG")->second;
+        pg->updateMVPUBO(UBO, mvp_mats);
         glm::vec3 light_world_loc = glm::vec3(0.0, 0.0, 3.0);
         light_world_loc = glm::mat3(ctrl->get_view()) * light_world_loc;
-        glProgramUniform3fv(prog, glGetUniformLocation(prog, "view_loc"), 1, &light_world_loc[0]);
-        glUseProgram(prog);
+        pg->setVec3("view_loc", light_world_loc);
+        pg->setFloat("shiness", shiness);
+        pg->use();
         GLuint vao = vaos.find("PHONG")->second;
         glBindVertexArray(vao);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
     } else if (exclusive_mode == VISUALIZE_VERTEX_NORMAL_MODE) {
-        GLuint prog = programs.find("VISUALIZE_VERTEX_NORMAL")->second;
-        UpdateMVPUBO(UBO, prog, mvp_mats);
-        glUseProgram(prog);
+        Program *pg = progs.find("VISUALIZE_VERTEX_NORMAL")->second;
+        pg->updateMVPUBO(UBO, mvp_mats);
+        pg->use();
         GLuint vao = vaos.find("VISUALIZE_VERTEX_NORMAL")->second;
         glBindVertexArray(vao);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
     } else {
-        GLuint prog = programs.find("DEFAULT")->second;
-        UpdateMVPUBO(UBO, prog, mvp_mats);
-        glUseProgram(prog);
+        Program *pg = progs.find("DEFAULT")->second;
+        pg->updateMVPUBO(UBO, mvp_mats);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, TEX);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        pg->setInt("TEX0", 0);
+        pg->use();
         GLuint vao = vaos.find("DEFAULT")->second;
         glBindVertexArray(vao);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -91,6 +112,7 @@ void Render::BakeCommand() {
 void Render::Gameloop() {
     {
         exclusive_mode = DEFAULT_MODE;
+        shiness = 1.0;
     }
     while (!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
@@ -106,6 +128,7 @@ void Render::Gameloop() {
         ImGui::RadioButton("Wireframe", &exclusive_mode, WIREFRAME_MODE);
         ImGui::RadioButton("Vertex Normal", &exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
         ImGui::RadioButton("Phong", &exclusive_mode, PHONG_MODE);
+        ImGui::SliderFloat("Shiness", &shiness, 1.0, 256.0);
         ImGui::Text("Eye @ (%.1f, %.1f, %.1f)", ctrl->get_eye().x, ctrl->get_eye().y, ctrl->get_eye().z);
         ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();

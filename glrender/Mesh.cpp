@@ -92,7 +92,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
             if (attrib.texcoords.size() > 0) {
                 temp.uv = {
                     attrib.texcoords[2 * v0.texcoord_index + 0],
-                    attrib.texcoords[2 * v0.texcoord_index + 1],
+                    1.0 - attrib.texcoords[2 * v0.texcoord_index + 1], // need flip UV for vulkan
                 };
             } else {
                 temp.uv = glm::vec2(0.0);
@@ -119,7 +119,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
             if (attrib.texcoords.size() > 0) {
                 temp.uv = {
                     attrib.texcoords[2 * v1.texcoord_index + 0],
-                    attrib.texcoords[2 * v1.texcoord_index + 1],
+                    1.0 - attrib.texcoords[2 * v1.texcoord_index + 1], // need flip UV for vulkan
                 };
             } else {
                 temp.uv = glm::vec2(0.0);
@@ -146,7 +146,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
             if (attrib.texcoords.size() > 0) {
                 temp.uv = {
                     attrib.texcoords[2 * v2.texcoord_index + 0],
-                    attrib.texcoords[2 * v2.texcoord_index + 1],
+                    1.0 - attrib.texcoords[2 * v2.texcoord_index + 1], // need flip UV for vulkan
                 };
             } else {
                 temp.uv = glm::vec2(0.0);
