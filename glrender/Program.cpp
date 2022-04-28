@@ -1,6 +1,7 @@
 #include "Program.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 
