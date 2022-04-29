@@ -11,9 +11,8 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "Mesh.hpp"
+#include "Controller.hpp"
 #include "Program.hpp"
-
-class Controller;
 
 class Render {
 public:
@@ -24,9 +23,13 @@ public:
     void InitImGui();
     void CreateResource();
     void BakeDefaultPipeline(GLuint VBO);
+    void run_if_default(GLuint VBO);
     void BakeWireframePipeline(GLuint VBO);
+    void run_if_wireframe(GLuint VBO);
     void BakeVVNPipeline(GLuint VBO);
+    void run_if_vvn(GLuint VBO);
     void BakePhongPipeline(GLuint VBO);
+    void run_if_phong(GLuint VBO);
     void BakeCommand();
     void Gameloop();
 
@@ -41,13 +44,12 @@ private:
         VISUALIZE_VERTEX_NORMAL_MODE,
         PHONG_MODE,
     };
-    int exclusive_mode;
-    Controller *ctrl;
-    GLuint UBO;
+    int m_exclusive_mode;
+    Controller *m_ctrl;
     GLuint VBO;
     GLuint TEX;
     Mesh mesh;
-    float shiness;
+    float m_roughness;
     std::map<std::string, GLuint> vaos;
     std::map<std::string, Program *> progs;
 };

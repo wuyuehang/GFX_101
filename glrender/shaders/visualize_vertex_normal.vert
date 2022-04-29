@@ -6,14 +6,12 @@ layout(location = 2) in vec2 vUV;
 
 layout(location = 0) out vec3 vout_Nor;
 
-uniform UBO {
-	mat4 model;
-	mat4 view;
-	mat4 proj;
-} MVP;
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
 
 void main() {
-	gl_Position = MVP.view * MVP.model * vec4(vPos, 1.0);
+	gl_Position = view_mat * model_mat * vec4(vPos, 1.0);
 
-	vout_Nor = mat3(MVP.view * MVP.model) * normalize(vNor);
+    vout_Nor = mat3(view_mat * model_mat) * normalize(vNor);
 }

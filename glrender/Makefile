@@ -1,9 +1,7 @@
 thirdparty = ./thirdparty
 bin = main
 
-src = main.cpp \
-	Common.cpp \
-	Controller.cpp \
+src = Controller.cpp \
 	Mesh.cpp \
 	Pipelines.cpp \
 	Program.cpp \

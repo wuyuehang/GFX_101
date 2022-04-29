@@ -4,14 +4,10 @@
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>
+#include "Common.hpp"
 
 class Mesh {
 public:
-    struct Vertex {
-        glm::vec3 pos;
-        glm::vec3 nor;
-        glm::vec2 uv;
-    };
     Mesh(const Mesh &) = delete;
     Mesh() {};
     ~Mesh() {};

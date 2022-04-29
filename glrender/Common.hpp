@@ -2,9 +2,6 @@
 #define COMMON_HPP
 
 #include <glm/glm.hpp>
-#include <GL/glew.h>
-#include <string>
-#include <vector>
 
 struct MVP {
     glm::mat4 model;
@@ -12,8 +9,9 @@ struct MVP {
     glm::mat4 proj;
 };
 
-void ReadFile(const char *filename, std::string & source);
-GLuint BuildShaderProgram(const char *filename, GLenum type);
-GLuint BuildProgramPipeline();
-
+struct Vertex {
+    glm::vec3 pos;
+    glm::vec3 nor;
+    glm::vec2 uv;
+};
 #endif

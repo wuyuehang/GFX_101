@@ -7,16 +7,14 @@ layout (location = 2) in vec2 vUV;
 layout (location = 0) out vec3 vout_Pos;
 layout (location = 1) out vec3 vout_Nor;
 
-uniform UBO {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-} MVP; // named uniform block
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
 
 void main() {
-    gl_Position = MVP.proj * MVP.view * MVP.model * vec4(vPos, 1.0);
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vPos, 1.0);
 
     // calculate light equation in model-view coordinate
-    vout_Pos = vec3(MVP.view * MVP.model * vec4(vPos, 1.0));
-    vout_Nor = mat3(MVP.view * MVP.model) * vNor;
+    vout_Pos = vec3(view_mat * model_mat * vec4(vPos, 1.0));
+    vout_Nor = mat3(transpose(inverse(view_mat * model_mat))) * vNor;
 }
