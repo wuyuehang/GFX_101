@@ -52,8 +52,8 @@ void HelloVulkan::bake_axis_DescriptorSet(VulkanPipe & pipe) {
 }
 
 void HelloVulkan::bake_axis_Pipeline(VulkanPipe & pipe) {
-    auto vert = loadSPIRV(dev, "axis.vert.spv");
-    auto frag = loadSPIRV(dev, "axis.frag.spv");
+    auto vert = loadSPIRV(dev, "./shaders/axis.vert.spv");
+    auto frag = loadSPIRV(dev, "./shaders/axis.frag.spv");
 
     VkPipelineShaderStageCreateInfo vert_stage_info { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
     vert_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;

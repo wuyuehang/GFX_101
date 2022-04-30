@@ -1,51 +1,64 @@
 VK_SDK_PATH = /home/yuewu01/v/1.3.204.1/x86_64
 
-CXXFLAGS = -std=c++11 -I$(VK_SDK_PATH)/include -I.
+thirdparty = ./thirdparty
+shaders = ./shaders
 
+CXXFLAGS = -std=c++11 -I$(VK_SDK_PATH)/include -I. -I$(thirdparty) -Wall -Wformat
 LDFLAGS = -L$(VK_SDK_PATH)/lib -lvulkan `pkg-config --libs glfw3` -lSOIL
 
 .PHONY: clean run all
 
 binary = main
-obj = main.o \
-	imgui.o \
-	imgui_draw.o \
-	imgui_impl_glfw.o \
-	imgui_impl_vulkan.o \
-	imgui_tables.o \
-	imgui_widgets.o \
-	tiny_obj_loader.o \
-	trackball.o \
-	Axis.o \
-	Controller.o \
-	Default.o \
-	HelloVulkan.o \
-	Mesh.o \
-	Phong.o \
-	VulkanCommon.o \
-	VulkanSwapchain.o \
-	Visualize_Vertex_Normal.o \
-	Wireframe.o
+
+src = Axis.cpp \
+	Controller.cpp \
+	Default.cpp \
+	HelloVulkan.cpp \
+	HelloVulkanCore.cpp \
+	Mesh.cpp \
+	Phong.cpp \
+	Visualize_Vertex_Normal.cpp \
+	VulkanCommon.cpp \
+	VulkanSwapchain.cpp \
+	Wireframe.cpp
+
+src += $(thirdparty)/imgui.cpp \
+	$(thirdparty)/imgui_draw.cpp \
+	$(thirdparty)/imgui_impl_glfw.cpp \
+	$(thirdparty)/imgui_impl_vulkan.cpp \
+	$(thirdparty)/imgui_tables.cpp \
+	$(thirdparty)/imgui_widgets.cpp
+
+src += $(thirdparty)/trackball.cc
+src += $(thirdparty)/tiny_obj_loader.cc
+
+obj += $(addsuffix .o, $(basename $(notdir $(src))))
 
 all: $(binary)
 
-main : $(obj)
+$(binary) : $(obj)
 	g++ $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o : %.c
-	g++ $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+%.o : %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o : $(thirdparty)/%.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o : $(thirdparty)/%.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 spv :
-	$(VK_SDK_PATH)/bin/glslangValidator -V axis.vert -o axis.vert.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V axis.frag -o axis.frag.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert -o simple.vert.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V phong.vert -o phong.vert.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V phong.frag -o phong.frag.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.vert -o visualize_vertex_normal.vert.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.geom -o visualize_vertex_normal.geom.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V visualize_vertex_normal.frag -o visualize_vertex_normal.frag.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V combined_image_sampler.frag -o combined_image_sampler.frag.spv
-	$(VK_SDK_PATH)/bin/glslangValidator -V wireframe.frag -o wireframe.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/axis.vert -o $(shaders)/axis.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/axis.frag -o $(shaders)/axis.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/simple.vert -o $(shaders)/simple.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/combined_image_sampler.frag -o $(shaders)/combined_image_sampler.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/wireframe.frag -o $(shaders)/wireframe.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/visualize_vertex_normal.vert -o $(shaders)/visualize_vertex_normal.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/visualize_vertex_normal.geom -o $(shaders)/visualize_vertex_normal.geom.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/visualize_vertex_normal.frag -o $(shaders)/visualize_vertex_normal.frag.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/phong.vert -o $(shaders)/phong.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V $(shaders)/phong.frag -o $(shaders)/phong.frag.spv
 
 clean:
 	rm -rf $(binary) $(obj)

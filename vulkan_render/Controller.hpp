@@ -14,6 +14,7 @@ public:
     virtual void handle_input() = 0;
     virtual glm::mat4 get_model() = 0;
     virtual glm::mat4 get_view() const = 0;
+    glm::vec3 get_eye() const { return eye; }
     glm::mat4 get_proj() const { return glm::perspective(glm::radians(fov), ratio, near, far); }
 
 protected:

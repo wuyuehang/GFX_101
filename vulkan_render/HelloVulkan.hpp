@@ -6,7 +6,9 @@
 #include <array>
 #include <vector>
 #include <glm/glm.hpp>
-
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 #include "Controller.hpp"
 #include "Mesh.hpp"
 #include "VulkanCommon.hpp"
@@ -30,96 +32,10 @@ public:
     };
     HelloVulkan();
     ~HelloVulkan();
-    void InitGLFW() {
-        glfwInit();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    #if 0
-        GLFWmonitor *prim = glfwGetPrimaryMonitor();
-        const GLFWvidmode *mode = glfwGetVideoMode(prim);
-        w = mode->width;
-        h = mode->height;
-        window = glfwCreateWindow(w, h, APP_NAME, prim, nullptr);
-        glfwSetWindowMonitor(window, prim, 0, 0, w, h, mode->refreshRate);
-    #else
-        w = 1024;
-        h = 1024;
-        window = glfwCreateWindow(w, h, APP_NAME, nullptr, nullptr);
-    #endif
-    }
-    void CreateInstance() {
-        VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-        app_info.pApplicationName = APP_NAME;
-        app_info.pEngineName = APP_NAME;
-        app_info.apiVersion = VK_API_VERSION_1_1;
-
-        VkInstanceCreateInfo instance_info { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
-        instance_info.pApplicationInfo = &app_info;
-        std::array<const char *, 2> instance_extension { "VK_KHR_surface", "VK_KHR_xcb_surface" };
-        instance_info.ppEnabledExtensionNames = instance_extension.data();
-        instance_info.enabledExtensionCount = instance_extension.size();
-        vkCreateInstance(&instance_info, nullptr, &instance);
-    }
-    void CreateDevice() {
-        uint32_t pdev_count;
-        vkEnumeratePhysicalDevices(instance, &pdev_count, nullptr);
-        std::vector<VkPhysicalDevice> physical_dev(pdev_count);
-        vkEnumeratePhysicalDevices(instance, &pdev_count, physical_dev.data());
-        pdev = physical_dev[0];
-
-        uint32_t queue_prop_count;
-        q_family_index = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(pdev, &queue_prop_count, nullptr);
-        std::vector<VkQueueFamilyProperties> queue_props(queue_prop_count);
-        vkGetPhysicalDeviceQueueFamilyProperties(pdev, &queue_prop_count, queue_props.data());
-        for (auto& it : queue_props) {
-            if (it.queueFlags & VK_QUEUE_GRAPHICS_BIT && it.queueFlags & VK_QUEUE_COMPUTE_BIT && it.queueFlags & VK_QUEUE_TRANSFER_BIT) {
-                break;
-            }
-            q_family_index++;
-        }
-
-        VkDeviceQueueCreateInfo queue_info { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-        float q_prio = 1.0;
-        queue_info.queueFamilyIndex = q_family_index;
-        queue_info.queueCount = 1;
-        queue_info.pQueuePriorities = &q_prio;
-
-        VkDeviceCreateInfo dev_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-        std::array<const char *, 1> dev_ext { "VK_KHR_swapchain" };
-        dev_info.queueCreateInfoCount = 1;
-        dev_info.pQueueCreateInfos = &queue_info;
-        dev_info.enabledExtensionCount = dev_ext.size();
-        dev_info.ppEnabledExtensionNames = dev_ext.data();
-
-        VkPhysicalDeviceFeatures device_feature {};
-        // polygonMode cannot be VK_POLYGON_MODE_POINT or VK_POLYGON_MODE_LINE if VkPhysicalDeviceFeatures->fillModeNonSolid is false.
-        device_feature.fillModeNonSolid = VK_TRUE;
-        // Enable geometry shader
-        device_feature.geometryShader = VK_TRUE;
-        dev_info.pEnabledFeatures = &device_feature;
-
-        vkCreateDevice(pdev, &dev_info, nullptr, &dev);
-        vkGetDeviceQueue(dev, q_family_index, 0, &queue);
-
-        vkGetPhysicalDeviceMemoryProperties(pdev, &mem_properties);
-    }
-    void InitSync() {
-        m_max_inflight_frames = vulkan_swapchain.images.size();
-        VkSemaphoreCreateInfo sema_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-        VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // mark as signed upon creation
-
-        image_available.resize(m_max_inflight_frames);
-        image_render_finished.resize(m_max_inflight_frames);
-        fence.resize(m_max_inflight_frames);
-
-        for (auto i = 0; i < m_max_inflight_frames; i++) {
-            vkCreateSemaphore(dev, &sema_info, nullptr, &image_available[i]);
-            vkCreateSemaphore(dev, &sema_info, nullptr, &image_render_finished[i]);
-            vkCreateFence(dev, &fence_info, nullptr, &fence[i]);
-        }
-    }
+    void InitGLFW();
+    void CreateInstance();
+    void CreateDevice();
+    void InitSync();
     void CreateCommand();
     void CreateRenderPass();
     void CreateFramebuffer();
@@ -133,33 +49,25 @@ public:
     void bake_default_DescriptorSetLayout(VulkanPipe &);
     void bake_default_DescriptorSet(VulkanPipe &);
     void bake_default_Pipeline(VulkanPipe &);
+    void run_if_default(VulkanPipe &, uint32_t);
     /* wireframe pipeline */
     void bake_wireframe_DescriptorSetLayout(VulkanPipe &);
     void bake_wireframe_DescriptorSet(VulkanPipe &);
     void bake_wireframe_Pipeline(VulkanPipe &);
+    void run_if_wireframe(VulkanPipe &, uint32_t);
     /* visualize vertex normal pipeline */
     void bake_visualize_vertex_normal_DescriptorSetLayout(VulkanPipe &);
     void bake_visualize_vertex_normal_DescriptorSet(VulkanPipe &);
     void bake_visualize_vertex_normal_Pipeline(VulkanPipe &);
+    void run_if_vnn(VulkanPipe &, uint32_t);
     /* phong pipeline */
     void bake_phong_DescriptorSetLayout(VulkanPipe &);
     void bake_phong_DescriptorSet(VulkanPipe &);
     void bake_phong_Pipeline(VulkanPipe &);
-    void clean_VulkanPipe(VulkanPipe p) {
-        vkDestroyPipeline(dev, p.pipeline, nullptr);
-        vkDestroyPipelineLayout(dev, p.pipeline_layout, nullptr);
-        vkDestroyDescriptorSetLayout(dev, p.dsl, nullptr);
-        vkFreeDescriptorSets(dev, p.pool, p.ds.size(), p.ds.data());
-        vkDestroyDescriptorPool(dev, p.pool, nullptr);
-    }
-    void begin_command_buffer(VkCommandBuffer &cmd) {
-        VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-        vkBeginCommandBuffer(cmd, &cmdbuf_begin_info);
-    }
-    void end_command_buffer(VkCommandBuffer &cmd) {
-        vkEndCommandBuffer(cmd);
-    }
+    void run_if_phong(VulkanPipe &, uint32_t);
+    void clean_VulkanPipe(VulkanPipe p);
+    void begin_command_buffer(VkCommandBuffer &cmd);
+    void end_command_buffer(VkCommandBuffer &cmd);
     void BakeCommand(uint32_t frame_nr);
     void HandleInput();
     void Gameloop();
@@ -176,7 +84,7 @@ public:
     int32_t h;
 
 private:
-    Controller *ctrl;
+    Controller *m_ctrl;
     VulkanSwapchain vulkan_swapchain;
     uint32_t q_family_index;
     uint32_t m_max_inflight_frames;
@@ -206,8 +114,8 @@ private:
     ImageObj *default_tex;
     VkSampler default_sampler;
     std::vector<BufferObj *> default_mvp_uniform;
-    /* light */
-    std::vector<BufferObj *> light;
+    /* scene */
+    std::vector<BufferObj *> scene_uniform;
     /* imgui */
     VkDescriptorPool imgui_pool;
     enum {
@@ -216,8 +124,8 @@ private:
         VISUALIZE_VERTEX_NORMAL_MODE,
         PHONG_MODE,
     };
-    int exclusive_mode;
-    int shiness;
-    bool display_axis;
+    int m_exclusive_mode;
+    float m_roughness;
+    bool m_display_axis;
 };
 #endif

@@ -40,13 +40,13 @@ void HelloVulkan::bake_phong_DescriptorSet(VulkanPipe & pipe) {
         VkDescriptorBufferInfo buf_info {
             .buffer = default_mvp_uniform[i]->get_buffer(),
             .offset = 0,
-            .range = sizeof(struct MVP),
+            .range = sizeof(MVP),
         };
 
         VkDescriptorBufferInfo light_buf_info {
-            .buffer = light[i]->get_buffer(),
+            .buffer = scene_uniform[i]->get_buffer(),
             .offset = 0,
-            .range = sizeof(struct LIGHT),
+            .range = sizeof(SCENE),
         };
 
         std::array<VkWriteDescriptorSet, 2> write {};
@@ -71,8 +71,8 @@ void HelloVulkan::bake_phong_DescriptorSet(VulkanPipe & pipe) {
 }
 
 void HelloVulkan::bake_phong_Pipeline(VulkanPipe & pipe) {
-    auto vert = loadSPIRV(dev, "phong.vert.spv");
-    auto frag = loadSPIRV(dev, "phong.frag.spv");
+    auto vert = loadSPIRV(dev, "./shaders/phong.vert.spv");
+    auto frag = loadSPIRV(dev, "./shaders/phong.frag.spv");
 
     VkPipelineShaderStageCreateInfo vert_stage_info { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
     vert_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -155,8 +155,8 @@ void HelloVulkan::bake_phong_Pipeline(VulkanPipe & pipe) {
         .depthClampEnable = VK_FALSE, // if the depthClamp device feature is disabled, depthClampEnable must be VK_FALS
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE, // inefficient
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0.0,
         .depthBiasClamp = 0.0,
@@ -217,4 +217,37 @@ void HelloVulkan::bake_phong_Pipeline(VulkanPipe & pipe) {
     vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipe.pipeline);
     vkDestroyShaderModule(dev, vert, nullptr);
     vkDestroyShaderModule(dev, frag, nullptr);
+}
+
+void HelloVulkan::run_if_phong(VulkanPipe & pipe, uint32_t frame_nr) {
+    if (m_exclusive_mode != PHONG_MODE) {
+        return;
+    }
+
+    begin_command_buffer(cmdbuf[frame_nr]);
+
+    VkRenderPassBeginInfo begin_renderpass_info { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+    begin_renderpass_info.renderPass = rp;
+    begin_renderpass_info.framebuffer = framebuffers[frame_nr];
+    begin_renderpass_info.renderArea.extent = VkExtent2D { (uint32_t)w, (uint32_t)h };
+    begin_renderpass_info.renderArea.offset = VkOffset2D { 0, 0 };
+    std::array<VkClearValue, 2> clear_value {};
+    clear_value[0].color = VkClearColorValue{ 0.0, 0.0, 0.0, 1.0 };
+    clear_value[1].depthStencil.depth = 1.0;
+    begin_renderpass_info.clearValueCount = clear_value.size();
+    begin_renderpass_info.pClearValues = clear_value.data();
+
+    vkCmdBeginRenderPass(cmdbuf[frame_nr], &begin_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline);
+    VkDeviceSize offsets[] { 0 };
+    vkCmdBindVertexBuffers(cmdbuf[frame_nr], 0, 1, &default_vertex->get_buffer(), offsets);
+    vkCmdBindDescriptorSets(cmdbuf[frame_nr], VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipeline_layout, 0, 1, &pipe.ds[frame_nr], 0, nullptr);
+    vkCmdDraw(cmdbuf[frame_nr], default_mesh.get_vertices().size(), 1, 0, 0);
+
+    // Build ImGui commands
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    ImGui_ImplVulkan_RenderDrawData(draw_data, cmdbuf[frame_nr]);
+
+    vkCmdEndRenderPass(cmdbuf[frame_nr]);
+    end_command_buffer(cmdbuf[frame_nr]);
 }

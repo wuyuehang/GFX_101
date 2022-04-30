@@ -14,9 +14,9 @@ struct MVP {
     glm::mat4 proj;
 };
 
-struct LIGHT {
-    glm::vec3 world_loc; // world location of light, f.inst point light
-    int shiness; // specular
+struct SCENE {
+    glm::vec3 light_loc; // view space location of light, f.inst point light
+    float roughness; // specular
 };
 
 class HelloVulkan;

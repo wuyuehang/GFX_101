@@ -97,12 +97,12 @@ void TrackballController::handle_input() {
     if (!init_control_system) {
         trackball(curr_quat, 0, 0, 0, 0);
 
-        eye = glm::vec3(0.0, 0.0, 4.0);
+        eye = glm::vec3(0.0, 0.0, 3.0);
         up = glm::vec3(0.0, 1.0, 0.0);
         front = glm::vec3(0.0, 0.0, 0.0);
 
-        fov = 45.0;
-        ratio = 1.0;
+        fov = 30.0;
+        ratio = hello_vulkan->w / (float)hello_vulkan->h;
         near = 0.1;
         far = 100.0;
         init_control_system = true;
