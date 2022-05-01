@@ -14,6 +14,7 @@ public:
         GLuint buffer_id;
         size_t material_id;
         std::vector<Vertex> vertices;
+        Material material;
     };
     Mesh(const Mesh &) = delete;
     Mesh() {};

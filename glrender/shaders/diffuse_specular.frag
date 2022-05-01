@@ -2,7 +2,6 @@
 
 layout (location = 0) in vec3 vout_Pos; // position in view space
 layout (location = 1) in vec3 vout_Nor; // normal in view space
-layout (location = 2) in vec2 vout_UV;
 
 layout (location = 0) out vec4 SV_Target;
 
@@ -15,15 +14,6 @@ uniform vec3 light_loc; // light in view space
 //uniform vec3 Ks;
 uniform float roughness;
 
-struct Material {
-    //vec3 Ka; // ambient
-    vec3 Kd; // diffuse
-    vec3 Ks; // specular
-};
-
-uniform Material material;
-uniform sampler2D TEX0_DIFFUSE; // diffuse texture
-
 void main()
 {
     // normalize normal
@@ -35,7 +25,7 @@ void main()
 #if 0
     SV_Target = Ld * Kd * diffuse;
 #else
-    SV_Target = vec4(diffuse) * vec4(material.Kd, 1.0) * texture(TEX0_DIFFUSE, vout_UV);
+    SV_Target = vec4(diffuse);
 #endif
 
     // specular shading equation
@@ -44,5 +34,5 @@ void main()
     vec3 reflect_dir = normalize(reflect(-L_dir, vout_Nor));
     float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), roughness);
 
-    SV_Target += vec4(specular) * vec4(material.Ks, 1.0);
+    SV_Target += vec4(specular);
 }

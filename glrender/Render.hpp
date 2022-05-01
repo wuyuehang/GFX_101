@@ -22,12 +22,15 @@ public:
     void InitGLFW();
     void InitImGui();
     void CreateResource();
+    void BakeVAO();
     void BakeDefaultPipeline();
     void run_if_default();
     void BakeWireframePipeline();
     void run_if_wireframe();
     void BakeVVNPipeline();
     void run_if_vvn();
+    void BakeDiffuseSpecularPipeline();
+    void run_if_diffuse_specular();
     void BakePhongPipeline();
     void run_if_phong();
     void BakeCommand();
@@ -42,6 +45,7 @@ private:
         DEFAULT_MODE = 0,
         WIREFRAME_MODE,
         VISUALIZE_VERTEX_NORMAL_MODE,
+        DIFFUSE_SPECULAR_MODE,
         PHONG_MODE,
     };
     int m_exclusive_mode;
