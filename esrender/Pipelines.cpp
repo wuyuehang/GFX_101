@@ -1,12 +1,11 @@
 #include "Common.hpp"
 #include "Render.hpp"
 
-void Render::BakeDefaultPipeline(GLuint VBO) {
+void Render::BakeDefaultPipeline() {
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
 
@@ -20,11 +19,11 @@ void Render::BakeDefaultPipeline(GLuint VBO) {
 
     glBindVertexArray(0);
 
-    std::vector<std::string> shaders { "./shaders/normal.vert", "./shaders/normal.frag" };
+    std::vector<std::string> shaders { "./shaders/simple.vert", "./shaders/simple.frag" };
     progs.insert({ "DEFAULT", new Program(shaders) });
 }
 
-void Render::run_if_default(GLuint VBO) {
+void Render::run_if_default() {
     if (m_exclusive_mode != DEFAULT_MODE) {
         return;
     }
@@ -49,15 +48,28 @@ void Render::run_if_default(GLuint VBO) {
     glCullFace(GL_BACK);
 
     glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    for (auto & obj : mesh.m_objects) {
+        if (obj.material_id != -1) {
+            std::string diffuse_tex = mesh.m_materials[obj.material_id].diffuse_texname;
+
+            if (mesh.m_textures.find(diffuse_tex) != mesh.m_textures.end()) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, mesh.m_textures[diffuse_tex]);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                prog->setInt("TEX0", 0);
+            }
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+        glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+    }
 }
 
-void Render::BakePhongPipeline(GLuint VBO) {
+void Render::BakePhongPipeline() {
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
 
@@ -75,7 +87,7 @@ void Render::BakePhongPipeline(GLuint VBO) {
     progs.insert({ "PHONG", new Program(shaders) });
 }
 
-void Render::run_if_phong(GLuint VBO) {
+void Render::run_if_phong() {
     if (m_exclusive_mode != PHONG_MODE) {
         return;
     }
@@ -104,15 +116,17 @@ void Render::run_if_phong(GLuint VBO) {
     glCullFace(GL_BACK);
 
     glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    for (auto & obj : mesh.m_objects) {
+        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+        glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+    }
 }
 
-void Render::BakeVVNPipeline(GLuint VBO) {
+void Render::BakeVVNPipeline() {
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
 
@@ -132,7 +146,7 @@ void Render::BakeVVNPipeline(GLuint VBO) {
     progs.insert({ "VISUALIZE_VERTEX_NORMAL", new Program(shaders) });
 }
 
-void Render::run_if_vnn(GLuint VBO) {
+void Render::run_if_vvn() {
     if (m_exclusive_mode != VISUALIZE_VERTEX_NORMAL_MODE) {
         return;
     }
@@ -157,5 +171,8 @@ void Render::run_if_vnn(GLuint VBO) {
     glCullFace(GL_BACK);
 
     glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, mesh.get_vertices().size());
+    for (auto & obj : mesh.m_objects) {
+        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+        glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+    }
 }

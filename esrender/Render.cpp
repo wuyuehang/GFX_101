@@ -4,9 +4,9 @@ Render::Render() :m_width(1280), m_height(720), m_ctrl(new TrackballController(t
     InitGLFW();
     InitImGui();
     CreateResource();
-    BakeDefaultPipeline(VBO);
-    BakeVVNPipeline(VBO);
-    BakePhongPipeline(VBO);
+    BakeDefaultPipeline();
+    BakeVVNPipeline();
+    BakePhongPipeline();
 }
 
 Render::~Render() {
@@ -24,18 +24,15 @@ Render::~Render() {
 }
 
 void Render::CreateResource() {
-    mesh.load("./assets/obj/Buddha.obj", glm::mat4(1.0));
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * mesh.get_vertices().size(), mesh.get_vertices().data(), GL_STATIC_DRAW);
+    mesh.load("./assets/obj/panther.obj", glm::mat4(1.0));
 }
 
 void Render::BakeCommand() {
     m_ctrl->handle_input();
 
-    run_if_default(VBO);
-    run_if_vnn(VBO);
-    run_if_phong(VBO);
+    run_if_default();
+    run_if_vvn();
+    run_if_phong();
 }
 
 void Render::Gameloop() {

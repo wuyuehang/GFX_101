@@ -1,8 +1,7 @@
 #include <cassert>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
-
-#include "tiny_obj_loader.h"
+#include <SOIL/SOIL.h>
 #include "Mesh.hpp"
 
 void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
@@ -35,24 +34,54 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
     | x | y | z | x | y | z | x | y | z | x | y | z | .... | x | y | z |
     +-----------+-----------+-----------+-----------+      +-----------+
 */
+    assert(filename.find_last_of("/\\") != std::string::npos);
+    std::string base_dir = filename.substr(0, filename.find_last_of("/\\"));
+    base_dir += "/";
+
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
     std::string warn, err;
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str())) {
+    if (!tinyobj::LoadObj(&attrib, &shapes, &m_materials, &warn, &err, filename.c_str(), base_dir.c_str())) {
         assert(0);
     }
 
     std::cout << "vertice  = " << attrib.vertices.size() / 3 << std::endl;
     std::cout << "normal   = " << attrib.normals.size() / 3 << std::endl;
     std::cout << "uv       = " << attrib.texcoords.size() / 2 << std::endl;
-    std::cout << "material = " << materials.size() << std::endl;
+    std::cout << "material = " << m_materials.size() << std::endl;
     std::cout << "shape    = " << shapes.size() << std::endl;
+
+    for (auto i = 0; i < m_materials.size(); i++) {
+        std::cout << "material[" << i << "].diffuse_texname = " << m_materials[i].diffuse_texname << std::endl;
+    }
+
+    for (auto i = 0; i < m_materials.size(); i++) {
+        if (m_materials[i].diffuse_texname.length() > 0) {
+            if (m_textures.find(m_materials[i].diffuse_texname) == m_textures.end()) {
+                std::string texture_filename = base_dir + m_materials[i].diffuse_texname; // assume in the same directory
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "diffuse_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(m_materials[i].diffuse_texname, tid));
+            }
+        }
+    }
 
     box.xmax = box.ymax = box.zmax = -std::numeric_limits<float>::max();
     box.xmin = box.ymin = box.zmin = std::numeric_limits<float>::max();
 
     for (const auto& shape : shapes) {
+        DrawObj o {}; // For simple, assume it is per shape material (TODO: support per face material)
         // Faces are defined using lists of vertex, texture and normal indices in the format vertex_index/texture_index/normal_index
         // f 3/3/1 2/2/1 1/1/1
         // f 1/1/1 4/4/1 3/3/1
@@ -98,7 +127,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 temp.uv = glm::vec2(0.0);
             }
 
-            m_vertices.push_back(temp);
+            o.vertices.push_back(temp);
             // process second vertex
             temp.pos = {
                 attrib.vertices[3 * v1.vertex_index + 0],
@@ -125,7 +154,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 temp.uv = glm::vec2(0.0);
             }
 
-            m_vertices.push_back(temp);
+            o.vertices.push_back(temp);
             // process third vertex
             temp.pos = {
                 attrib.vertices[3 * v2.vertex_index + 0],
@@ -152,7 +181,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 temp.uv = glm::vec2(0.0);
             }
 
-            m_vertices.push_back(temp);
+            o.vertices.push_back(temp);
             // update boudung box
             box.xmin = std::min(box.xmin, attrib.vertices[3 * v0.vertex_index + 0]);
             box.xmin = std::min(box.xmin, attrib.vertices[3 * v1.vertex_index + 0]);
@@ -178,18 +207,31 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
             box.zmax = std::max(box.zmax, attrib.vertices[3 * v1.vertex_index + 2]);
             box.zmax = std::max(box.zmax, attrib.vertices[3 * v2.vertex_index + 2]);
         }
+        // BAKE VERTEX
+        assert(o.vertices.size() > 0);
+        glGenBuffers(1, &o.buffer_id);
+        glBindBuffer(GL_ARRAY_BUFFER, o.buffer_id);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*o.vertices.size(), o.vertices.data(), GL_STATIC_DRAW);
+        // LOAD DIFFUSE
+        if (shape.mesh.material_ids.size() > 0) {
+            o.material_id = shape.mesh.material_ids[0]; // use the material ID of first face
+        } else {
+            o.material_id = -1;
+        }
+        m_objects.push_back(o);
     }
     std::cout << "box min  = " << box.xmin << ", " << box.ymin << ", " << box.zmin << std::endl;
     std::cout << "box max  = " << box.xmax << ", " << box.ymax << ", " << box.zmax << std::endl;
 
     /* scale based on largest extension direction  */
-    double scale = (1.0 - (-1.0)) / (box.xmax - box.xmin);
-    scale = std::min(scale, (1.0 - (-1.0)) / (box.ymax - box.ymin));
-    scale = std::min(scale, (1.0 - (-1.0)) / (box.ymax - box.zmin));
-
-    glm::mat4 pre_scale = glm::scale(pre_rotation, glm::vec3(scale, scale, scale));
+    double scale = 0.5 * (box.xmax - box.xmin);
+    scale = std::max(scale, 0.5 * (box.ymax - box.ymin));
+    scale = std::max(scale, 0.5 * (box.zmax - box.zmin));
+    scale = 1.0 / scale;
     /* translate to centre */
-    m_model_mat = glm::translate(pre_scale, glm::vec3(-0.5 * (box.xmax + box.xmin), -0.5 * (box.ymax + box.ymin), -0.5 * (box.zmax + box.zmin)));
+    m_model_mat = glm::translate(glm::mat4(1.0), glm::vec3(-0.5 * (box.xmax + box.xmin), -0.5 * (box.ymax + box.ymin), -0.5 * (box.zmax + box.zmin)));
+    m_model_mat = glm::scale(glm::mat4(1.0), glm::vec3(scale, scale, scale)) * m_model_mat;
+    m_model_mat = pre_rotation * m_model_mat;
 }
 
 glm::mat4 Mesh::get_model_mat() {

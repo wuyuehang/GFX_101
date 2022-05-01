@@ -20,12 +20,12 @@ public:
     void InitGLFW();
     void InitImGui();
     void CreateResource();
-    void BakeDefaultPipeline(GLuint VBO);
-    void run_if_default(GLuint VBO);
-    void BakeVVNPipeline(GLuint VBO);
-    void run_if_vnn(GLuint VBO);
-    void BakePhongPipeline(GLuint VBO);
-    void run_if_phong(GLuint VBO);
+    void BakeDefaultPipeline();
+    void run_if_default();
+    void BakeVVNPipeline();
+    void run_if_vvn();
+    void BakePhongPipeline();
+    void run_if_phong();
     void BakeCommand();
     void Gameloop();
 
@@ -41,7 +41,6 @@ private:
     };
     int m_exclusive_mode;
     Controller *m_ctrl;
-    GLuint VBO;
     Mesh mesh;
     float m_roughness;
     std::map<std::string, GLuint> vaos;
