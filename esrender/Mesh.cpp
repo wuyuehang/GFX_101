@@ -218,6 +218,10 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
         } else {
             o.material_id = -1;
         }
+        // MATERIAL REFLEXITY
+        o.material.Ka = glm::vec3(m_materials[o.material_id].ambient[0], m_materials[o.material_id].ambient[1], m_materials[o.material_id].ambient[2]);
+        o.material.Kd = glm::vec3(m_materials[o.material_id].diffuse[0], m_materials[o.material_id].diffuse[1], m_materials[o.material_id].diffuse[2]);
+        o.material.Ks = glm::vec3(m_materials[o.material_id].specular[0], m_materials[o.material_id].specular[1], m_materials[o.material_id].specular[2]);
         m_objects.push_back(o);
     }
     std::cout << "box min  = " << box.xmin << ", " << box.ymin << ", " << box.zmin << std::endl;

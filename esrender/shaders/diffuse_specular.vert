@@ -6,7 +6,6 @@ layout (location = 2) in vec2 vUV;
 
 layout (location = 0) out vec3 vout_Pos;
 layout (location = 1) out vec3 vout_Nor;
-layout (location = 2) out vec2 vout_UV;
 
 uniform mat4 model_mat;
 uniform mat4 view_mat;
@@ -18,5 +17,4 @@ void main() {
     // calculate light equation in model-view coordinate
     vout_Pos = vec3(view_mat * model_mat * vec4(vPos, 1.0));
     vout_Nor = mat3(transpose(inverse(view_mat * model_mat))) * vNor;
-    vout_UV = vUV;
 }

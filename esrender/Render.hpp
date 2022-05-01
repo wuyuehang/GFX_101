@@ -20,10 +20,13 @@ public:
     void InitGLFW();
     void InitImGui();
     void CreateResource();
+    void BakeVAO();
     void BakeDefaultPipeline();
     void run_if_default();
     void BakeVVNPipeline();
     void run_if_vvn();
+    void BakeDiffuseSpecularPipeline();
+    void run_if_diffuse_specular();
     void BakePhongPipeline();
     void run_if_phong();
     void BakeCommand();
@@ -37,6 +40,7 @@ private:
     enum {
         DEFAULT_MODE = 0,
         VISUALIZE_VERTEX_NORMAL_MODE,
+        DIFFUSE_SPECULAR_MODE,
         PHONG_MODE,
     };
     int m_exclusive_mode;
