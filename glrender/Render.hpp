@@ -10,8 +10,8 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "Mesh.hpp"
 #include "Controller.hpp"
+#include "Mesh.hpp"
 #include "Program.hpp"
 
 class Render {

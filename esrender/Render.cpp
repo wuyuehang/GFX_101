@@ -26,7 +26,7 @@ Render::~Render() {
 }
 
 void Render::CreateResource() {
-    mesh.load("./assets/obj/panther.obj", glm::mat4(1.0));
+    mesh.load("../assets/obj/knife.obj", glm::mat4(1.0));
 }
 
 void Render::BakeCommand() {

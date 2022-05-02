@@ -158,9 +158,16 @@ void Render::run_if_phong() {
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
 
-    glm::vec3 light_loc = glm::vec3(m_ctrl->get_view() * glm::vec4(0.0, 0.0, 3.0, 1.0));
-    prog->setVec3("light_loc", light_loc);
-    prog->setFloat("roughness", m_roughness);
+    glm::vec3 light_loc = glm::vec3(m_ctrl->get_view() * glm::vec4(0.0, 0.0, 5.0, 1.0));
+    prog->setVec3("light_loc[0]", light_loc);
+    static float angle = 0.0;
+    angle += 1000.0 / ImGui::GetIO().Framerate * 0.05;
+    glm::vec3 orbit_light_loc = glm::vec3(m_ctrl->get_view() * glm::rotate(glm::mat4(1.0), glm::radians(angle), glm::vec3(0.0, 1.0, 0.0)) * glm::vec4(0.0, 0.0, 5.0, 1.0));
+    prog->setVec3("light_loc[1]", orbit_light_loc);
+
+    prog->setFloat("attenuation.Kc", 1.0);
+    prog->setFloat("attenuation.Kl", 0.09);
+    prog->setFloat("attenuation.Kq", 0.032);
     prog->use();
 
     GLuint vao = vaos["GENERAL"];
@@ -179,8 +186,8 @@ void Render::run_if_phong() {
     glBindVertexArray(vao);
     for (auto & obj : mesh.m_objects) {
         if (obj.material_id != -1) {
+            // DIFFUSE
             std::string diffuse_tex = mesh.m_materials[obj.material_id].diffuse_texname;
-
             if (mesh.m_textures.find(diffuse_tex) != mesh.m_textures.end()) {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, mesh.m_textures[diffuse_tex]);
@@ -189,8 +196,25 @@ void Render::run_if_phong() {
                 prog->setVec3("material.Kd", obj.material.Kd);
                 prog->setInt("TEX0_DIFFUSE", 0);
             }
-            // Unconditionally set sepcular reflexity
-            prog->setVec3("material.Ks", obj.material.Ks);
+            // SPECULAR
+            std::string specular_tex = mesh.m_materials[obj.material_id].specular_texname;
+            if (mesh.m_textures.find(specular_tex) != mesh.m_textures.end()) {
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, mesh.m_textures[specular_tex]);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                prog->setVec3("material.Ks", obj.material.Ks);
+                prog->setInt("TEX1_SPECULAR", 1);
+            }
+            // ROUGHNESS
+            std::string roughness_tex = mesh.m_materials[obj.material_id].roughness_texname;
+            if (mesh.m_textures.find(roughness_tex) != mesh.m_textures.end()) {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, mesh.m_textures[roughness_tex]);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                prog->setInt("TEX2_ROUGHNESS", 2);
+            }
         }
         glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
         glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());

@@ -7,14 +7,14 @@ layout (location = 2) in vec2 vout_UV;
 
 layout (location = 0) out vec4 SV_Target;
 
-uniform vec3 light_loc; // light in view space
+uniform vec3 light_loc[2]; // light in view space
 //uniform vec3 La;
 //uniform vec3 Ka;
 //uniform vec3 Ld; // light_intensity;
 //uniform vec3 Kd; // diffuse reflectivity
 //uniform vec3 Ls;
 //uniform vec3 Ks;
-uniform float roughness;
+//uniform float roughness;
 
 struct Material {
     //vec3 Ka; // ambient
@@ -22,28 +22,53 @@ struct Material {
     vec3 Ks; // specular
 };
 
-uniform Material material;
-uniform sampler2D TEX0_DIFFUSE; // diffuse texture
+struct Attenuation {
+    float Kc;
+    float Kl;
+    float Kq;
+};
 
-void main()
-{
+uniform Material material;
+uniform Attenuation attenuation;
+
+uniform sampler2D TEX0_DIFFUSE;  // diffuse texture
+uniform sampler2D TEX1_SPECULAR; // specular texture
+uniform sampler2D TEX2_ROUGHNESS; // pbr roughness texture
+
+vec3 ads(vec3 light, vec3 pos, vec3 nor, vec2 uv, Material material, Attenuation attenuation) {
+    vec3 ADS;
+
     // normalize normal
-    vec3 N_dir = normalize(vout_Nor);
+    vec3 N_dir = normalize(nor);
 
     // diffuse shading equation
-    vec3 L_dir = normalize(light_loc - vout_Pos);
+    vec3 L_dir = normalize(light - pos);
     float diffuse = max(dot(L_dir, N_dir), 0.0);
-#if 0
-    SV_Target = Ld * Kd * diffuse;
-#else
-    SV_Target = vec4(diffuse) * vec4(material.Kd, 1.0) * texture(TEX0_DIFFUSE, vout_UV);
-#endif
+
+    ADS = vec3(diffuse) * material.Kd * texture(TEX0_DIFFUSE, uv).rgb;
 
     // specular shading equation
     // since we're in view coordinate space, the view is origin at 0
-    vec3 view_dir = normalize(vec3(0.0) - vout_Pos);
-    vec3 reflect_dir = normalize(reflect(-L_dir, vout_Nor));
-    float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), roughness);
+    vec3 view_dir = normalize(vec3(0.0) - pos);
+    vec3 reflect_dir = normalize(reflect(-L_dir, nor));
+    //
+    vec3 specular;
+    specular.r = pow(max(dot(view_dir, reflect_dir), 0.0f), texture(TEX2_ROUGHNESS, uv).r);
+    specular.g = pow(max(dot(view_dir, reflect_dir), 0.0f), texture(TEX2_ROUGHNESS, uv).g);
+    specular.b = pow(max(dot(view_dir, reflect_dir), 0.0f), texture(TEX2_ROUGHNESS, uv).b);
 
-    SV_Target += vec4(specular) * vec4(material.Ks, 1.0);
+    ADS += vec3(specular) * material.Ks * texture(TEX1_SPECULAR, uv).rgb;
+
+    // Calculate attenuation
+    float distance = length(light - pos);
+    float f_attenuation = 1.0 / (attenuation.Kc + attenuation.Kl * distance + attenuation.Kq * distance * distance);
+    ADS *= vec3(f_attenuation);
+
+    return ADS;
+}
+
+void main()
+{
+    SV_Target = vec4(ads(light_loc[0], vout_Pos, vout_Nor, vout_UV, material, attenuation), 1.0);
+    //SV_Target += vec4(ads(light_loc[1], vout_Pos, vout_Nor, vout_UV, material, attenuation), 1.0);
 }

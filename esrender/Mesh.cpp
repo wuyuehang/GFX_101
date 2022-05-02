@@ -53,6 +53,8 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
 
     for (auto i = 0; i < m_materials.size(); i++) {
         std::cout << "material[" << i << "].diffuse_texname = " << m_materials[i].diffuse_texname << std::endl;
+        std::cout << "material[" << i << "].specular_texname = " << m_materials[i].specular_texname << std::endl;
+        std::cout << "material[" << i << "].roughness_texname = " << m_materials[i].roughness_texname << std::endl;
     }
 
     for (auto i = 0; i < m_materials.size(); i++) {
@@ -73,6 +75,44 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 SOIL_free_image_data(ptr);
 
                 m_textures.insert(std::make_pair(m_materials[i].diffuse_texname, tid));
+            }
+        }
+        if (m_materials[i].specular_texname.length() > 0) {
+            if (m_textures.find(m_materials[i].specular_texname) == m_textures.end()) {
+                std::string texture_filename = base_dir + m_materials[i].specular_texname; // assume in the same directory
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "specular_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(m_materials[i].specular_texname, tid));
+            }
+        }
+        if (m_materials[i].roughness_texname.length() > 0) {
+            if (m_textures.find(m_materials[i].roughness_texname) == m_textures.end()) {
+                std::string texture_filename = base_dir + m_materials[i].roughness_texname; // assume in the same directory
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "roughness_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(m_materials[i].specular_texname, tid));
             }
         }
     }
@@ -212,16 +252,18 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
         glGenBuffers(1, &o.buffer_id);
         glBindBuffer(GL_ARRAY_BUFFER, o.buffer_id);
         glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*o.vertices.size(), o.vertices.data(), GL_STATIC_DRAW);
-        // LOAD DIFFUSE
+        // LOAD DIFFUSE & SPECULAR
         if (shape.mesh.material_ids.size() > 0) {
             o.material_id = shape.mesh.material_ids[0]; // use the material ID of first face
         } else {
             o.material_id = -1;
         }
         // MATERIAL REFLEXITY
-        o.material.Ka = glm::vec3(m_materials[o.material_id].ambient[0], m_materials[o.material_id].ambient[1], m_materials[o.material_id].ambient[2]);
-        o.material.Kd = glm::vec3(m_materials[o.material_id].diffuse[0], m_materials[o.material_id].diffuse[1], m_materials[o.material_id].diffuse[2]);
-        o.material.Ks = glm::vec3(m_materials[o.material_id].specular[0], m_materials[o.material_id].specular[1], m_materials[o.material_id].specular[2]);
+        if (o.material_id != -1) {
+            o.material.Ka = glm::vec3(m_materials[o.material_id].ambient[0], m_materials[o.material_id].ambient[1], m_materials[o.material_id].ambient[2]);
+            o.material.Kd = glm::vec3(m_materials[o.material_id].diffuse[0], m_materials[o.material_id].diffuse[1], m_materials[o.material_id].diffuse[2]);
+            o.material.Ks = glm::vec3(m_materials[o.material_id].specular[0], m_materials[o.material_id].specular[1], m_materials[o.material_id].specular[2]);
+        }
         m_objects.push_back(o);
     }
     std::cout << "box min  = " << box.xmin << ", " << box.ymin << ", " << box.zmin << std::endl;

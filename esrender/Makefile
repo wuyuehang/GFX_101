@@ -1,4 +1,4 @@
-thirdparty = ./thirdparty
+thirdparty = ../thirdparty
 bin = main
 
 src = Controller.cpp \
