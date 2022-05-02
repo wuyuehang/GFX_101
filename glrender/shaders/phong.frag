@@ -21,8 +21,17 @@ struct Material {
     vec3 Ks; // specular
 };
 
+struct Attenuation {
+    float Kc;
+    float Kl;
+    float Kq;
+};
+
 uniform Material material;
-uniform sampler2D TEX0_DIFFUSE; // diffuse texture
+uniform Attenuation attenuation;
+
+uniform sampler2D TEX0_DIFFUSE;  // diffuse texture
+uniform sampler2D TEX1_SPECULAR; // specular texture
 
 void main()
 {
@@ -44,5 +53,10 @@ void main()
     vec3 reflect_dir = normalize(reflect(-L_dir, vout_Nor));
     float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), roughness);
 
-    SV_Target += vec4(specular) * vec4(material.Ks, 1.0);
+    SV_Target += vec4(specular) * vec4(material.Ks, 1.0) * texture(TEX1_SPECULAR, vout_UV);
+
+    // Calculate attenuation
+    float distance = length(light_loc - vout_Pos);
+    float f_attenuation = 1.0 / (attenuation.Kc + attenuation.Kl * distance + attenuation.Kq * distance * distance);
+    SV_Target *= vec4(f_attenuation);
 }
