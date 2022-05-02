@@ -122,8 +122,13 @@ void Render::run_if_phong() {
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
 
-    glm::vec3 light_loc = glm::vec3(m_ctrl->get_view() * glm::vec4(0.0, 0.0, 3.0, 1.0));
-    prog->setVec3("light_loc", light_loc);
+    glm::vec3 light_loc = glm::vec3(m_ctrl->get_view() * glm::vec4(0.0, 0.0, 5.0, 1.0));
+    prog->setVec3("light_loc[0]", light_loc);
+    static float angle = 0.0;
+    angle += 1000.0 / ImGui::GetIO().Framerate * 0.05;
+    glm::vec3 orbit_light_loc = glm::vec3(m_ctrl->get_view() * glm::rotate(glm::mat4(1.0), glm::radians(angle), glm::vec3(0.0, 1.0, 0.0)) * glm::vec4(0.0, 0.0, 5.0, 1.0));
+    prog->setVec3("light_loc[1]", orbit_light_loc);
+
     prog->setFloat("roughness", m_roughness);
 
     prog->setFloat("attenuation.Kc", 1.0);
