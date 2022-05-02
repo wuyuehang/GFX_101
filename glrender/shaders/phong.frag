@@ -13,7 +13,7 @@ uniform vec3 light_loc[2]; // light in view space
 //uniform vec3 Kd; // diffuse reflectivity
 //uniform vec3 Ls;
 //uniform vec3 Ks;
-uniform float roughness;
+//uniform float roughness;
 
 struct Material {
     //vec3 Ka; // ambient
@@ -32,6 +32,7 @@ uniform Attenuation attenuation;
 
 uniform sampler2D TEX0_DIFFUSE;  // diffuse texture
 uniform sampler2D TEX1_SPECULAR; // specular texture
+uniform sampler2D TEX2_ROUGHNESS; // pbr roughness texture
 
 vec3 ads(vec3 light, vec3 pos, vec3 nor, vec2 uv, Material material, Attenuation attenuation) {
     vec3 ADS;
@@ -49,7 +50,11 @@ vec3 ads(vec3 light, vec3 pos, vec3 nor, vec2 uv, Material material, Attenuation
     // since we're in view coordinate space, the view is origin at 0
     vec3 view_dir = normalize(vec3(0.0) - pos);
     vec3 reflect_dir = normalize(reflect(-L_dir, nor));
-    float specular = pow(max(dot(view_dir, reflect_dir), 0.0f), roughness);
+    //
+    vec3 specular;
+    specular.r = pow(max(dot(view_dir, reflect_dir), 0.0f), texture(TEX2_ROUGHNESS, uv).r);
+    specular.g = pow(max(dot(view_dir, reflect_dir), 0.0f), texture(TEX2_ROUGHNESS, uv).g);
+    specular.b = pow(max(dot(view_dir, reflect_dir), 0.0f), texture(TEX2_ROUGHNESS, uv).b);
 
     ADS += vec3(specular) * material.Ks * texture(TEX1_SPECULAR, uv).rgb;
 
