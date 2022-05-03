@@ -264,3 +264,58 @@ void Render::run_if_diffuse_specular() {
         glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
     }
 }
+
+void Render::BakeToonPipeline() {
+    std::vector<std::string> shaders { "./shaders/toon.vert", "./shaders/toon.frag" };
+    progs.insert(std::make_pair("TOON", new Program(shaders)));
+}
+
+void Render::run_if_toon() {
+    if (m_exclusive_mode != TOON_MODE) {
+        return;
+    }
+
+    Program *prog = progs["TOON"];
+    prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
+    prog->setMat4("view_mat", m_ctrl->get_view());
+    prog->setMat4("proj_mat", m_ctrl->get_proj());
+
+    glm::vec3 light_loc = glm::vec3(m_ctrl->get_view() * glm::vec4(0.0, 0.0, 5.0, 1.0));
+    prog->setVec3("light_loc[0]", light_loc);
+    static float angle = 0.0;
+    angle += 1000.0 / ImGui::GetIO().Framerate * 0.05;
+    glm::vec3 orbit_light_loc = glm::vec3(m_ctrl->get_view() * glm::rotate(glm::mat4(1.0), glm::radians(angle), glm::vec3(0.0, 1.0, 0.0)) * glm::vec4(0.0, 0.0, 5.0, 1.0));
+    prog->setVec3("light_loc[1]", orbit_light_loc);
+    prog->use();
+
+    GLuint vao = vaos["GENERAL"];
+
+    glViewport(0, 0, m_width, m_height);
+    glClearColor(0.98, 0.90, 0.68, 0.0);
+    glClearDepthf(1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glCullFace(GL_BACK);
+
+    glBindVertexArray(vao);
+    for (auto & obj : mesh.m_objects) {
+        if (obj.material_id != -1) {
+            // DIFFUSE
+            std::string diffuse_tex = mesh.m_materials[obj.material_id].diffuse_texname;
+            if (mesh.m_textures.find(diffuse_tex) != mesh.m_textures.end()) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, mesh.m_textures[diffuse_tex]);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                prog->setVec3("material.Kd", obj.material.Kd);
+                prog->setInt("TEX0_DIFFUSE", 0);
+            }
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+        glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+    }
+}

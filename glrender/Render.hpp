@@ -33,6 +33,8 @@ public:
     void run_if_diffuse_specular();
     void BakePhongPipeline();
     void run_if_phong();
+    void BakeToonPipeline();
+    void run_if_toon();
     void BakeCommand();
     void Gameloop();
 
@@ -47,6 +49,7 @@ private:
         VISUALIZE_VERTEX_NORMAL_MODE,
         DIFFUSE_SPECULAR_MODE,
         PHONG_MODE,
+        TOON_MODE,
     };
     int m_exclusive_mode;
     Controller *m_ctrl;

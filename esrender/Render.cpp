@@ -9,6 +9,7 @@ Render::Render() :m_width(1280), m_height(720), m_ctrl(new TrackballController(t
     BakeVVNPipeline();
     BakeDiffuseSpecularPipeline();
     BakePhongPipeline();
+    BakeToonPipeline();
 }
 
 Render::~Render() {
@@ -36,6 +37,7 @@ void Render::BakeCommand() {
     run_if_vvn();
     run_if_diffuse_specular();
     run_if_phong();
+    run_if_toon();
 }
 
 void Render::Gameloop() {
@@ -56,6 +58,7 @@ void Render::Gameloop() {
         ImGui::RadioButton("Default", &m_exclusive_mode, DEFAULT_MODE);
         ImGui::RadioButton("Phong", &m_exclusive_mode, PHONG_MODE);
         ImGui::RadioButton("Vertex Normal", &m_exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
+        ImGui::RadioButton("Toon", &m_exclusive_mode, TOON_MODE);
         ImGui::RadioButton("Diffuse & Specular", &m_exclusive_mode, DIFFUSE_SPECULAR_MODE);
         ImGui::SliderFloat("Roughness", &m_roughness, 0.01, 256.0);
         ImGui::Text("Eye @ (%.1f, %.1f, %.1f)", m_ctrl->get_eye().x, m_ctrl->get_eye().y, m_ctrl->get_eye().z);
