@@ -4,7 +4,50 @@
 #include <SOIL/SOIL.h>
 #include "Mesh.hpp"
 
-void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
+Mesh::~Mesh() {}
+
+void ObjMesh::bind_diffuse(DrawObj & obj, uint32_t slot) {
+    if (obj.material_id != -1) {
+        std::string diffuse_tex = m_materials[obj.material_id].diffuse_texname;
+        if (m_textures.find(diffuse_tex) != m_textures.end()) {
+            glActiveTexture(GL_TEXTURE0 + slot);
+            glBindTexture(GL_TEXTURE_2D, m_textures[diffuse_tex]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+    }
+}
+
+void ObjMesh::bind_specular(DrawObj & obj, uint32_t slot) {
+    if (obj.material_id != -1) {
+        std::string specular_tex = m_materials[obj.material_id].specular_texname;
+        if (m_textures.find(specular_tex) != m_textures.end()) {
+            glActiveTexture(GL_TEXTURE0 + slot);
+            glBindTexture(GL_TEXTURE_2D, m_textures[specular_tex]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+    }
+}
+
+void ObjMesh::bind_roughness(DrawObj & obj, uint32_t slot) {
+    if (obj.material_id != -1) {
+        std::string roughness_tex = m_materials[obj.material_id].roughness_texname;
+        if (m_textures.find(roughness_tex) != m_textures.end()) {
+            glActiveTexture(GL_TEXTURE0 + slot);
+            glBindTexture(GL_TEXTURE_2D, m_textures[roughness_tex]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+    }
+}
+
+void ObjMesh::draw(DrawObj & obj) {
+    glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+    glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+}
+
+void ObjMesh::load(const std::string filename) {
 /*
     attrib_t::vertices => 3 floats per vertex
 
@@ -112,7 +155,7 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
                 glBindTexture(GL_TEXTURE_2D, 0);
                 SOIL_free_image_data(ptr);
 
-                m_textures.insert(std::make_pair(m_materials[i].specular_texname, tid));
+                m_textures.insert(std::make_pair(m_materials[i].roughness_texname, tid));
             }
         }
     }
@@ -277,9 +320,189 @@ void Mesh::load(const std::string filename, glm::mat4 pre_rotation) {
     /* translate to centre */
     m_model_mat = glm::translate(glm::mat4(1.0), glm::vec3(-0.5 * (box.xmax + box.xmin), -0.5 * (box.ymax + box.ymin), -0.5 * (box.zmax + box.zmin)));
     m_model_mat = glm::scale(glm::mat4(1.0), glm::vec3(scale, scale, scale)) * m_model_mat;
-    m_model_mat = pre_rotation * m_model_mat;
 }
 
-glm::mat4 Mesh::get_model_mat() {
-    return m_model_mat;
+void AssimpMesh::load(const std::string filename) {
+    assert(filename.find_last_of("/\\") != std::string::npos);
+    std::string base_dir = filename.substr(0, filename.find_last_of("/\\"));
+    base_dir += "/";
+    Assimp::Importer Importer;
+    // aiProcess_OptimizeMeshes
+    auto pScene = Importer.ReadFile(filename.c_str(), aiProcess_Triangulate |
+        aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices |
+        aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_FlipUVs);
+    assert(pScene);
+
+    for (auto i = 0; i < pScene->mNumMaterials; i++) {
+        const aiMaterial *pMaterial = pScene->mMaterials[i];
+
+        aiString path;
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE, 0, &path)) {
+            if (m_textures.find(path.data) == m_textures.end()) {
+                std::string texture_filename = base_dir + path.data;
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "diffuse_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(path.data, tid));
+            }
+        }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_SPECULAR, 0, &path)) {
+            if (m_textures.find(path.data) == m_textures.end()) {
+                std::string texture_filename = base_dir + path.data;
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "specular_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(path.data, tid));
+            }
+        }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE_ROUGHNESS, 0, &path)) {
+            if (m_textures.find(path.data) == m_textures.end()) {
+                std::string texture_filename = base_dir + path.data;
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "roughness_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(path.data, tid));
+            }
+        }
+    }
+
+    box.xmax = box.ymax = box.zmax = -std::numeric_limits<float>::max();
+    box.xmin = box.ymin = box.zmin = std::numeric_limits<float>::max();
+    for (auto i = 0; i < pScene->mNumMeshes; i++) {
+        DrawObj o {};
+        const aiMesh *pMesh = pScene->mMeshes[i];
+
+        for (auto n = 0; n < pMesh->mNumVertices; n++) {
+            const aiVector3D *pos = &(pMesh->mVertices[n]);
+            const aiVector3D *nor = &(pMesh->mNormals[n]);
+            const aiVector3D *uv = &(pMesh->mTextureCoords[0][n]);
+            o.vertices.push_back(Vertex { glm::vec3(pos->x, pos->y, pos->z), glm::vec3(nor->x, nor->y, nor->z), glm::vec2(uv->x, uv->y) });
+
+            // update boudung box
+            box.xmin = std::min(box.xmin, pos->x);
+            box.ymin = std::min(box.ymin, pos->y);
+            box.zmin = std::min(box.zmin, pos->z);
+
+            box.xmax = std::max(box.xmax, pos->x);
+            box.ymax = std::max(box.ymax, pos->y);
+            box.zmax = std::max(box.zmax, pos->z);
+        }
+
+        for (auto n = 0; n < pMesh->mNumFaces; n++) {
+            const aiFace & face = pMesh->mFaces[n];
+            assert(face.mNumIndices == 3);
+            o.indices.push_back(face.mIndices[0]);
+            o.indices.push_back(face.mIndices[1]);
+            o.indices.push_back(face.mIndices[2]);
+        }
+        std::cout << "vertice  = " << pMesh->mNumVertices << std::endl;
+        // BAKE VERTEX && INDICE
+        assert(o.vertices.size() > 0);
+        glGenBuffers(1, &o.buffer_id);
+        glBindBuffer(GL_ARRAY_BUFFER, o.buffer_id);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*o.vertices.size(), o.vertices.data(), GL_STATIC_DRAW);
+        glGenBuffers(1, &o.indexbuf_id);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.indexbuf_id);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*o.indices.size(), o.indices.data(), GL_STATIC_DRAW);
+        // BAKE MATERIAL
+        const aiMaterial *pMaterial = pScene->mMaterials[pMesh->mMaterialIndex];
+        aiString path;
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE, 0, &path)) {
+            o.material_names.diffuse_texname = path.data;
+        }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_SPECULAR, 0, &path)) {
+            o.material_names.specular_texname = path.data;
+        }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE_ROUGHNESS, 0, &path)) {
+            o.material_names.roughness_texname = path.data;
+        }
+        aiColor4D K;
+        if (AI_SUCCESS == aiGetMaterialColor(pMaterial, AI_MATKEY_COLOR_AMBIENT, &K)) {
+            o.material.Ka = glm::vec3(K.r, K.g, K.b);
+        }
+        if (AI_SUCCESS == aiGetMaterialColor(pMaterial, AI_MATKEY_COLOR_DIFFUSE, &K)) {
+            o.material.Kd = glm::vec3(K.r, K.g, K.b);
+        }
+        if (AI_SUCCESS == aiGetMaterialColor(pMaterial, AI_MATKEY_COLOR_SPECULAR, &K)) {
+            o.material.Ks = glm::vec3(K.r, K.g, K.b);
+        }
+        m_objects.push_back(o);
+    }
+    std::cout << "material = " << pScene->mNumMaterials << std::endl;
+    std::cout << "shape    = " << pScene->mNumMeshes << std::endl;
+
+    std::cout << "box min  = " << box.xmin << ", " << box.ymin << ", " << box.zmin << std::endl;
+    std::cout << "box max  = " << box.xmax << ", " << box.ymax << ", " << box.zmax << std::endl;
+
+    /* scale based on largest extension direction  */
+    double scale = 0.5 * (box.xmax - box.xmin);
+    scale = std::max(scale, 0.5 * (box.ymax - box.ymin));
+    scale = std::max(scale, 0.5 * (box.zmax - box.zmin));
+    scale = 1.0 / scale;
+    /* translate to centre */
+    m_model_mat = glm::translate(glm::mat4(1.0), glm::vec3(-0.5 * (box.xmax + box.xmin), -0.5 * (box.ymax + box.ymin), -0.5 * (box.zmax + box.zmin)));
+    m_model_mat = glm::scale(glm::mat4(1.0), glm::vec3(scale, scale, scale)) * m_model_mat;
+}
+
+void AssimpMesh::bind_diffuse(DrawObj & obj, uint32_t slot) {
+    if (!obj.material_names.diffuse_texname.empty()) {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.diffuse_texname]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+}
+
+void AssimpMesh::bind_specular(DrawObj & obj, uint32_t slot) {
+    if (!obj.material_names.specular_texname.empty()) {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.specular_texname]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+}
+
+void AssimpMesh::bind_roughness(DrawObj & obj, uint32_t slot) {
+    if (!obj.material_names.roughness_texname.empty()) {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.roughness_texname]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+}
+
+void AssimpMesh::draw(DrawObj & obj) {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.indexbuf_id);
+    glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+    glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
 }

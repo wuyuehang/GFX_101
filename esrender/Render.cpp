@@ -27,12 +27,11 @@ Render::~Render() {
 }
 
 void Render::CreateResource() {
-    mesh.load("../assets/obj/knife.obj", glm::mat4(1.0));
+    mesh.load("../assets/obj/knife.obj");
 }
 
 void Render::BakeCommand() {
     m_ctrl->handle_input();
-
     run_if_default();
     run_if_vvn();
     run_if_diffuse_specular();

@@ -135,6 +135,7 @@ void Render::run_if_phong() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glBindVertexArray(vao);
 
     for (auto & obj : mesh.m_objects) {
@@ -224,6 +225,7 @@ void Render::run_if_diffuse_specular() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glBindVertexArray(vao);
     for (auto & obj : mesh.m_objects) {
         mesh.draw(obj);
@@ -266,6 +268,7 @@ void Render::run_if_toon() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glBindVertexArray(vao);
     for (auto & obj : mesh.m_objects) {
         mesh.bind_diffuse(obj, 0);

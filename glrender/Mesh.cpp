@@ -155,7 +155,7 @@ void ObjMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, 0);
                 SOIL_free_image_data(ptr);
 
-                m_textures.insert(std::make_pair(m_materials[i].specular_texname, tid));
+                m_textures.insert(std::make_pair(m_materials[i].roughness_texname, tid));
             }
         }
     }
@@ -327,11 +327,10 @@ void AssimpMesh::load(const std::string filename) {
     std::string base_dir = filename.substr(0, filename.find_last_of("/\\"));
     base_dir += "/";
     Assimp::Importer Importer;
-    // aiProcess_FlipUVsv
     // aiProcess_OptimizeMeshes
     auto pScene = Importer.ReadFile(filename.c_str(), aiProcess_Triangulate |
         aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices |
-        aiProcess_JoinIdenticalVertices |aiProcess_GenUVCoords);
+        aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_FlipUVs);
     assert(pScene);
 
     for (auto i = 0; i < pScene->mNumMaterials; i++) {

@@ -20,7 +20,7 @@ src += $(thirdparty)/tiny_obj_loader.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I. -I$(thirdparty) -Wall -Wformat -lglfw -lGLESv2 -ldl -lSOIL
+CXXFLAGS = -std=c++11 -I. -I$(thirdparty) -Wall -Wformat -lglfw -lGLESv2 -ldl -lSOIL -lassimp
 
 CFLAGS = $(CXXFLAGS)
 

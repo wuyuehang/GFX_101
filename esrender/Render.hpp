@@ -48,7 +48,7 @@ private:
     };
     int m_exclusive_mode;
     Controller *m_ctrl;
-    Mesh mesh;
+    AssimpMesh mesh;
     float m_roughness;
     std::map<std::string, GLuint> vaos;
     std::map<std::string, Program *> progs;
