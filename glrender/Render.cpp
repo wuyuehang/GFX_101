@@ -33,7 +33,7 @@ Render::~Render() {
 }
 
 void Render::CreateResource() {
-    mesh.load("../assets/obj/knife.obj");
+    mesh.load("../assets/gltf/game_boy_classic/scene.gltf");
 }
 
 void Render::BakeCommand() {
