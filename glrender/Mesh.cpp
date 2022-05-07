@@ -1,8 +1,9 @@
 #include <cassert>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
-#include <SOIL/SOIL.h>
 #include "Mesh.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 Mesh::~Mesh() {}
 
@@ -105,7 +106,7 @@ void ObjMesh::load(const std::string filename) {
             if (m_textures.find(m_materials[i].diffuse_texname) == m_textures.end()) {
                 std::string texture_filename = base_dir + m_materials[i].diffuse_texname; // assume in the same directory
                 int w, h, c;
-                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
                 assert(ptr);
                 std::cout << "diffuse_texture: " << texture_filename << ", w = "<< w << ", h = "
                     << h << ", comp = " << c << std::endl;
@@ -115,7 +116,7 @@ void ObjMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 glBindTexture(GL_TEXTURE_2D, 0);
-                SOIL_free_image_data(ptr);
+                stbi_image_free(ptr);
 
                 m_textures.insert(std::make_pair(m_materials[i].diffuse_texname, tid));
             }
@@ -124,7 +125,7 @@ void ObjMesh::load(const std::string filename) {
             if (m_textures.find(m_materials[i].specular_texname) == m_textures.end()) {
                 std::string texture_filename = base_dir + m_materials[i].specular_texname; // assume in the same directory
                 int w, h, c;
-                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
                 assert(ptr);
                 std::cout << "specular_texture: " << texture_filename << ", w = "<< w << ", h = "
                     << h << ", comp = " << c << std::endl;
@@ -134,7 +135,7 @@ void ObjMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 glBindTexture(GL_TEXTURE_2D, 0);
-                SOIL_free_image_data(ptr);
+                stbi_image_free(ptr);
 
                 m_textures.insert(std::make_pair(m_materials[i].specular_texname, tid));
             }
@@ -143,7 +144,7 @@ void ObjMesh::load(const std::string filename) {
             if (m_textures.find(m_materials[i].roughness_texname) == m_textures.end()) {
                 std::string texture_filename = base_dir + m_materials[i].roughness_texname; // assume in the same directory
                 int w, h, c;
-                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
                 assert(ptr);
                 std::cout << "roughness_texture: " << texture_filename << ", w = "<< w << ", h = "
                     << h << ", comp = " << c << std::endl;
@@ -153,7 +154,7 @@ void ObjMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 glBindTexture(GL_TEXTURE_2D, 0);
-                SOIL_free_image_data(ptr);
+                stbi_image_free(ptr);
 
                 m_textures.insert(std::make_pair(m_materials[i].roughness_texname, tid));
             }
@@ -341,7 +342,7 @@ void AssimpMesh::load(const std::string filename) {
             if (m_textures.find(path.data) == m_textures.end()) {
                 std::string texture_filename = base_dir + path.data;
                 int w, h, c;
-                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
                 assert(ptr);
                 std::cout << "diffuse_texture: " << texture_filename << ", w = "<< w << ", h = "
                     << h << ", comp = " << c << std::endl;
@@ -351,7 +352,7 @@ void AssimpMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 glBindTexture(GL_TEXTURE_2D, 0);
-                SOIL_free_image_data(ptr);
+                stbi_image_free(ptr);
 
                 m_textures.insert(std::make_pair(path.data, tid));
             }
@@ -360,7 +361,7 @@ void AssimpMesh::load(const std::string filename) {
             if (m_textures.find(path.data) == m_textures.end()) {
                 std::string texture_filename = base_dir + path.data;
                 int w, h, c;
-                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
                 assert(ptr);
                 std::cout << "specular_texture: " << texture_filename << ", w = "<< w << ", h = "
                     << h << ", comp = " << c << std::endl;
@@ -370,7 +371,7 @@ void AssimpMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 glBindTexture(GL_TEXTURE_2D, 0);
-                SOIL_free_image_data(ptr);
+                stbi_image_free(ptr);
 
                 m_textures.insert(std::make_pair(path.data, tid));
             }
@@ -379,7 +380,7 @@ void AssimpMesh::load(const std::string filename) {
             if (m_textures.find(path.data) == m_textures.end()) {
                 std::string texture_filename = base_dir + path.data;
                 int w, h, c;
-                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
                 assert(ptr);
                 std::cout << "roughness_texture: " << texture_filename << ", w = "<< w << ", h = "
                     << h << ", comp = " << c << std::endl;
@@ -389,7 +390,7 @@ void AssimpMesh::load(const std::string filename) {
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
                 glBindTexture(GL_TEXTURE_2D, 0);
-                SOIL_free_image_data(ptr);
+                stbi_image_free(ptr);
 
                 m_textures.insert(std::make_pair(path.data, tid));
             }
