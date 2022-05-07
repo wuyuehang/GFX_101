@@ -1,0 +1,11 @@
+Model Information:
+* title:	**OLD** Spot Mini (Rigged)
+* source:	https://sketchfab.com/3d-models/old-spot-mini-rigged-5dcbee77730640269cef5bd2587e328a
+* author:	Greg McKechnie (https://sketchfab.com/mckechniegreg6)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "**OLD** Spot Mini (Rigged)" (https://sketchfab.com/3d-models/old-spot-mini-rigged-5dcbee77730640269cef5bd2587e328a) by Greg McKechnie (https://sketchfab.com/mckechniegreg6) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -33,7 +33,10 @@ Render::~Render() {
 }
 
 void Render::CreateResource() {
-    mesh.load("../assets/gltf/game_boy_classic/scene.gltf");
+    //mesh.load("../assets/gltf/game_boy_classic/scene.gltf");
+    //mesh.load("../assets/gltf/vintage_suitcase_derivative/scene.gltf");
+    mesh.load("../assets/gltf/old_spot_mini_rigged/scene.gltf");
+    //mesh.load("../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
 }
 
 void Render::BakeCommand() {

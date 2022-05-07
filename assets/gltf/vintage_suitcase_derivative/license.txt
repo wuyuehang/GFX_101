@@ -1,0 +1,11 @@
+Model Information:
+* title:	Vintage Suitcase [derivative]
+* source:	https://sketchfab.com/3d-models/vintage-suitcase-derivative-4097027ee5e246579cf80a23aab1522c
+* author:	romullus (https://sketchfab.com/romullus)
+
+Model License:
+* license type:	CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/)
+* requirements:	Author must be credited. Modified versions must have the same license. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Vintage Suitcase [derivative]" (https://sketchfab.com/3d-models/vintage-suitcase-derivative-4097027ee5e246579cf80a23aab1522c) by romullus (https://sketchfab.com/romullus) licensed under CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/)
