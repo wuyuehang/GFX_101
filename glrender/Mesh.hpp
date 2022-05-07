@@ -55,6 +55,7 @@ public:
     struct material_t {
         std::string diffuse_texname;
         std::string specular_texname;
+        std::string roughness_texname;
     };
     struct DrawObj {
         GLuint buffer_id;

@@ -376,7 +376,25 @@ void AssimpMesh::load(const std::string filename) {
                 m_textures.insert(std::make_pair(path.data, tid));
             }
         }
-        // current Assimp doesn't support roughness texture
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE_ROUGHNESS, 0, &path)) {
+            if (m_textures.find(path.data) == m_textures.end()) {
+                std::string texture_filename = base_dir + path.data;
+                int w, h, c;
+                uint8_t *ptr = SOIL_load_image(texture_filename.c_str(), &w, &h, &c, SOIL_LOAD_RGBA);
+                assert(ptr);
+                std::cout << "roughness_texture: " << texture_filename << ", w = "<< w << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                SOIL_free_image_data(ptr);
+
+                m_textures.insert(std::make_pair(path.data, tid));
+            }
+        }
     }
 
     box.xmax = box.ymax = box.zmax = -std::numeric_limits<float>::max();
@@ -426,6 +444,9 @@ void AssimpMesh::load(const std::string filename) {
         if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_SPECULAR, 0, &path)) {
             o.material_names.specular_texname = path.data;
         }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE_ROUGHNESS, 0, &path)) {
+            o.material_names.roughness_texname = path.data;
+        }
         aiColor4D K;
         if (AI_SUCCESS == aiGetMaterialColor(pMaterial, AI_MATKEY_COLOR_AMBIENT, &K)) {
             o.material.Ka = glm::vec3(K.r, K.g, K.b);
@@ -473,6 +494,12 @@ void AssimpMesh::bind_specular(DrawObj & obj, uint32_t slot) {
 }
 
 void AssimpMesh::bind_roughness(DrawObj & obj, uint32_t slot) {
+    if (!obj.material_names.roughness_texname.empty()) {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.roughness_texname]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
 }
 
 void AssimpMesh::draw(DrawObj & obj) {
