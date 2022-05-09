@@ -17,7 +17,7 @@
 class Render {
 public:
     Render(const Render &) = delete;
-    Render();
+    Render(int argc, char *argv[]);
     ~Render();
     void InitGLFW();
     void InitImGui();

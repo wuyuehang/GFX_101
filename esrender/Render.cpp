@@ -1,9 +1,13 @@
 #include "Render.hpp"
 
-Render::Render() :m_width(1280), m_height(720), m_ctrl(new TrackballController(this)) {
+Render::Render(int argc, char *argv[]) :m_width(1280), m_height(720), m_ctrl(new TrackballController(this)) {
     InitGLFW();
     InitImGui();
-    CreateResource();
+    if (argc == 2) {
+        mesh.load(std::string(argv[1]));
+    } else {
+        mesh.load("../assets/gltf/old_spot_mini_rigged/scene.gltf");
+    }
     BakeVAO();
     BakeDefaultPipeline();
     BakeVVNPipeline();
@@ -24,10 +28,6 @@ Render::~Render() {
     glfwDestroyWindow(m_window);
     glfwTerminate();
     delete m_ctrl;
-}
-
-void Render::CreateResource() {
-    mesh.load("../assets/obj/knife.obj");
 }
 
 void Render::BakeCommand() {
@@ -72,8 +72,8 @@ void Render::Gameloop() {
     }
 }
 
-int main() {
-    Render app;
+int main(int argc, char *argv[]) {
+    Render app(argc, argv);
     app.Gameloop();
     return 0;
 }

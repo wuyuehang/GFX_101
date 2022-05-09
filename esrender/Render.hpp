@@ -15,11 +15,10 @@
 class Render {
 public:
     Render(const Render &) = delete;
-    Render();
+    Render(int argc, char *argv[]);
     ~Render();
     void InitGLFW();
     void InitImGui();
-    void CreateResource();
     void BakeVAO();
     void BakeDefaultPipeline();
     void run_if_default();

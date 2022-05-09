@@ -5,10 +5,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 
-Render::Render() :m_width(1280), m_height(720), m_ctrl(new TrackballController(this)) {
+Render::Render(int argc, char *argv[]) :m_width(1280), m_height(720), m_ctrl(new TrackballController(this)) {
     InitGLFW();
     InitImGui();
-    CreateResource();
+    if (argc == 2) {
+        mesh.load(std::string(argv[1]));
+    } else {
+        mesh.load("../assets/gltf/old_spot_mini_rigged/scene.gltf");
+    }
     BakeVAO();
     BakeDefaultPipeline();
     BakeWireframePipeline();
@@ -30,13 +34,6 @@ Render::~Render() {
     glfwDestroyWindow(m_window);
     glfwTerminate();
     delete m_ctrl;
-}
-
-void Render::CreateResource() {
-    //mesh.load("../assets/gltf/game_boy_classic/scene.gltf");
-    //mesh.load("../assets/gltf/vintage_suitcase_derivative/scene.gltf");
-    mesh.load("../assets/gltf/old_spot_mini_rigged/scene.gltf");
-    //mesh.load("../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
 }
 
 void Render::BakeCommand() {
@@ -83,8 +80,8 @@ void Render::Gameloop() {
     }
 }
 
-int main() {
-    Render app;
+int main(int argc, char *argv[]) {
+    Render app(argc, argv);
     app.Gameloop();
     return 0;
 }
