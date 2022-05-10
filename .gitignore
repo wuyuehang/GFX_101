@@ -1,4 +1,6 @@
 *.spv
 main
+pbrmain
 *.o
 *.ini
+.vscode

@@ -5,8 +5,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-Mesh::~Mesh() {}
-
 void ObjMesh::bind_diffuse(DrawObj & obj, uint32_t slot) {
     if (obj.material_id != -1) {
         std::string diffuse_tex = m_materials[obj.material_id].diffuse_texname;

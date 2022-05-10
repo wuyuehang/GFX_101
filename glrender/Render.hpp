@@ -40,8 +40,6 @@ public:
 
 public:
     GLFWwindow *m_window;
-    int32_t m_width;
-    int32_t m_height;
 private:
     enum {
         DEFAULT_MODE = 0,
@@ -52,6 +50,8 @@ private:
         TOON_MODE,
     };
     int m_exclusive_mode;
+    int32_t m_width;
+    int32_t m_height;
     Controller *m_ctrl;
     AssimpMesh mesh;
     float m_roughness;

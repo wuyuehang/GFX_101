@@ -1,0 +1,11 @@
+Model Information:
+* title:	AxeGun
+* source:	https://sketchfab.com/3d-models/axegun-0c37629895b84960a401c70e69ffe2a2
+* author:	MysticArts (https://sketchfab.com/VishnuRajan)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "AxeGun" (https://sketchfab.com/3d-models/axegun-0c37629895b84960a401c70e69ffe2a2) by MysticArts (https://sketchfab.com/VishnuRajan) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

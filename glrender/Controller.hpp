@@ -6,7 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "trackball.h"
 
-class Render;
+class GLFWwindow;
 
 class Controller {
 public:
@@ -31,7 +31,7 @@ class TrackballController : public Controller {
 public:
     TrackballController() = delete;
     TrackballController(const TrackballController &) = delete;
-    TrackballController(Render *app) : hello_gl(app) { assert(app != nullptr); }
+    TrackballController(GLFWwindow *glfw);
     ~TrackballController() override {};
     void handle_input() override final;
     glm::mat4 get_view() const override final;
@@ -42,7 +42,9 @@ public:
     }
 
 private:
-    const Render *hello_gl;
+    GLFWwindow *m_window;
+    int m_width;
+    int m_height;
     float curr_quat[4];
     float prev_quat[4];
 };

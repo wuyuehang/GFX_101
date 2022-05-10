@@ -11,9 +11,9 @@
 #include "Common.hpp"
 #include "tiny_obj_loader.h"
 
-class Mesh {
+class MeshBase {
 public:
-    virtual ~Mesh() = 0;
+    ~MeshBase() {};
     virtual void load(const std::string) = 0;
     glm::mat4 get_model_mat() const { return m_model_mat; }
 protected:
@@ -29,7 +29,7 @@ protected:
     glm::mat4 m_model_mat;
 };
 
-class ObjMesh : public Mesh {
+class ObjMesh : public MeshBase {
 public:
     struct DrawObj {
         GLuint buffer_id;
@@ -39,7 +39,7 @@ public:
     };
     ObjMesh(const ObjMesh &) = delete;
     ObjMesh() {};
-    ~ObjMesh() override {};
+    ~ObjMesh() {};
     void load(const std::string) override final;
     void bind_diffuse(DrawObj &, uint32_t);
     void bind_specular(DrawObj &, uint32_t);
@@ -50,7 +50,7 @@ public:
     std::map<std::string, GLuint> m_textures;
 };
 
-class AssimpMesh : public Mesh {
+class AssimpMesh : public MeshBase {
 public:
     struct material_t {
         std::string diffuse_texname;
@@ -67,7 +67,7 @@ public:
     };
     AssimpMesh(const AssimpMesh &) = delete;
     AssimpMesh() {};
-    ~AssimpMesh() override {};
+    ~AssimpMesh() {};
     void load(const std::string) override final;
     void bind_diffuse(DrawObj &, uint32_t);
     void bind_specular(DrawObj &, uint32_t);
