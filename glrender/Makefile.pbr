@@ -18,7 +18,7 @@ src += $(thirdparty)/trackball.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl -lassimp
+CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl
 
 CFLAGS = $(CXXFLAGS)
 

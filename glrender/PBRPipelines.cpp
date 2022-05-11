@@ -27,14 +27,11 @@ void PBRRender::run_if_default() {
     if (m_exclusive_mode != DEFAULT_MODE) {
         return;
     }
-/*
+
     Program *prog = progs["DEFAULT"];
-    prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
-    prog->setMat4("view_mat", m_ctrl->get_view());
+    prog->setMat4("view_mat", m_ctrl->get_view() * m_ctrl->get_model());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
     prog->use();
-
-    GLuint vao = vaos["GENERAL"];
 
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -49,14 +46,10 @@ void PBRRender::run_if_default() {
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    glBindVertexArray(vao);
+    glBindVertexArray(vaos["GENERAL"]);
 
-    for (auto & obj : mesh.m_objects) {
-        mesh.bind_diffuse(obj, 0);
-        prog->setInt("TEX0", 0);
-        mesh.draw(obj);
-    }
-*/
+    prog->setInt("TEX0", 0);
+    mesh.draw(prog);
 }
 
 void PBRRender::BakeWireframePipeline() {

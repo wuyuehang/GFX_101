@@ -11,13 +11,29 @@
 
 class Program;
 
+// gltf concept
+// scene --> node --> mesh --> primitive --> accessor --> buffer_view --> buffer
+//                      !
+//                      !--> material --> texture --> image
+//                                           !
+//                                           !--> sampler
 class GltfMesh : public MeshBase {
 private:
+    // material.texture
+    struct Texture {
+        uint32_t imageIndex;
+    };
+    // mesh.material
+    struct Material {
+        glm::vec4 baseColorFactor = glm::vec4(1.0);
+        uint32_t baseColorTextureIndex;
+    };
     // mesh.primitives
     struct Primitive {
         uint32_t firstIndex;
         uint32_t indexCount;
-        Primitive(uint32_t firstIndex, uint32_t indexCount) : firstIndex(firstIndex), indexCount(indexCount) {}
+        uint32_t materialIndex;
+        Primitive(uint32_t firstIndex, uint32_t indexCount, uint32_t materialIndex) : firstIndex(firstIndex), indexCount(indexCount), materialIndex(materialIndex) {}
     };
     // node.mesh
     struct Mesh {
@@ -51,11 +67,17 @@ public:
     void draw(Program *);
     std::vector<Node *> m_nodes;
 private:
+    void loadImages();
+    void loadMaterials();
+    void loadTextures();
     void loadNode(const tinygltf::Node & inputNode, Node *parent, std::vector<uint32_t> & indexBuffer, std::vector<Vertex> & vertexBuffer, uint32_t iteration);
     void drawNode(Node *, Program *);
     tinygltf::Model gltfModel;
     tinygltf::TinyGLTF gltfContext;
     GLuint VBO;
     GLuint EBO;
+    std::vector<GLuint> m_images;
+    std::vector<Texture> m_textures;
+    std::vector<Material> m_materials;
 };
 #endif

@@ -5,12 +5,56 @@
 #include "Program.hpp"
 #include <iostream>
 
+void GltfMesh::loadImages() {
+    m_images.resize(gltfModel.images.size());
+
+    for (std::vector<tinygltf::Image>::size_type i = 0; i < gltfModel.images.size(); i++) {
+        tinygltf::Image & gltfImage = gltfModel.images[i];
+        std::cout << "image[" << i << "].uri: " << gltfImage.uri << ", w = " << gltfImage.width
+            << ", h = " << gltfImage.height << ", c = " << gltfImage.component << std::endl;
+
+        glGenTextures(1, &m_images[i]);
+        glBindTexture(GL_TEXTURE_2D, m_images[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, gltfImage.width, gltfImage.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, gltfImage.image.data());
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+}
+
+void GltfMesh::loadMaterials() {
+    m_materials.resize(gltfModel.materials.size());
+
+    for (std::vector<tinygltf::Material>::size_type i = 0; i < gltfModel.materials.size(); i++) {
+        tinygltf::Material & gltfMaterial = gltfModel.materials[i];
+        // get the base color factor
+        if (gltfMaterial.values.find("baseColorFactor") != gltfMaterial.values.end()) {
+            m_materials[i].baseColorFactor = glm::make_vec4(gltfMaterial.values["baseColorFactor"].ColorFactor().data());
+        }
+        // get base color texture index
+        if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end()) {
+            m_materials[i].baseColorTextureIndex = gltfMaterial.values["baseColorTexture"].TextureIndex();
+        }
+    }
+}
+
+void GltfMesh::loadTextures() {
+    m_textures.resize(gltfModel.textures.size());
+
+    for (std::vector<tinygltf::Texture>::size_type i = 0; i < gltfModel.textures.size(); i++) {
+        m_textures[i].imageIndex = gltfModel.textures[i].source;
+        std::cout << "texture[" << i << "] refers image[" << gltfModel.textures[i].source << "]" << std::endl;
+    }
+}
+
 void GltfMesh::load(const std::string filename) {
     std::string warn, err;
     gltfContext.LoadASCIIFromFile(&gltfModel, &err, &warn, filename);
 
     std::vector<uint32_t> indexBuffer;
     std::vector<Vertex> vertexBuffer;
+
+    loadImages();
+    loadMaterials();
+    loadTextures();
 
     const tinygltf::Scene & scene = gltfModel.scenes[0];
     for (std::vector<int>::size_type i = 0; i < scene.nodes.size(); i++) {
@@ -139,7 +183,7 @@ void GltfMesh::loadNode(const tinygltf::Node & inputNode, Node *parent, std::vec
                 }
             }
             node->mesh = new Mesh;
-            node->mesh->prims.push_back(new Primitive(firstIndex, indexCount));
+            node->mesh->prims.push_back(new Primitive(firstIndex, indexCount, glTFPrimitive.material));
         }
     }
 
@@ -174,6 +218,14 @@ void GltfMesh::drawNode(Node *node, Program *prog) {
 
             for (auto prim : node->mesh->prims) {
                 if (prim->indexCount > 0) {
+                    // get the texture for the primitive
+                    Material & material = m_materials[prim->materialIndex];
+                    Texture & texture = m_textures[material.baseColorTextureIndex];
+                    GLuint image = m_images[texture.imageIndex];
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, image);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                     glDrawElements(GL_TRIANGLES, prim->indexCount, GL_UNSIGNED_INT, (const void *)(prim->firstIndex * sizeof(GLuint)));
                 }
             }
