@@ -1,11 +1,13 @@
 thirdparty = ../thirdparty
-bin = pbrmain
+util = ../util
+bin = main
 
-src = Controller.cpp \
-	GltfMesh.cpp \
+src = GltfMesh.cpp \
 	PBRPipelines.cpp \
 	PBRRender.cpp \
-	Program.cpp
+
+src += $(util)/Controller.cpp \
+	$(util)/Program.cpp
 
 src += $(thirdparty)/imgui.cpp \
 	$(thirdparty)/imgui_draw.cpp \
@@ -18,7 +20,7 @@ src += $(thirdparty)/trackball.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl
+CXXFLAGS = -std=c++11 -I$(thirdparty) -I$(util) -I. -Wall -Wformat -lglfw -lGLEW -lGL -ldl -DGL_BACKEND=1
 
 CFLAGS = $(CXXFLAGS)
 
@@ -30,6 +32,9 @@ CFLAGS = $(CXXFLAGS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(thirdparty)/%.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o:$(util)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(bin): $(obj)

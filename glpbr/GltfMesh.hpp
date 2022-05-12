@@ -2,6 +2,7 @@
 #define GLTFMESH_HPP
 
 #include "Mesh.hpp"
+#include "Program.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,15 +10,13 @@
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #include "tiny_gltf.h"
 
-class Program;
-
 // gltf concept
 // scene --> node --> mesh --> primitive --> accessor --> buffer_view --> buffer
 //                      !
 //                      !--> material --> texture --> image
 //                                           !
 //                                           !--> sampler
-class GltfMesh : public MeshBase {
+class GltfMesh : public util::MeshBase {
 private:
     // material.texture
     struct Texture {
@@ -64,14 +63,14 @@ public:
     GltfMesh() {};
     ~GltfMesh() {};
     void load(const std::string) override final;
-    void draw(Program *);
+    void draw(util::Program *);
     std::vector<Node *> m_nodes;
 private:
     void loadImages();
     void loadMaterials();
     void loadTextures();
     void loadNode(const tinygltf::Node & inputNode, Node *parent, std::vector<uint32_t> & indexBuffer, std::vector<Vertex> & vertexBuffer, uint32_t iteration);
-    void drawNode(Node *, Program *);
+    void drawNode(Node *, util::Program *);
     tinygltf::Model gltfModel;
     tinygltf::TinyGLTF gltfContext;
     GLuint VBO;

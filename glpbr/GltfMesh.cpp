@@ -194,7 +194,7 @@ void GltfMesh::loadNode(const tinygltf::Node & inputNode, Node *parent, std::vec
     }
 }
 
-void GltfMesh::draw(Program *prog) {
+void GltfMesh::draw(util::Program *prog) {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     for (auto node : m_nodes) {
@@ -202,7 +202,7 @@ void GltfMesh::draw(Program *prog) {
     }
 }
 
-void GltfMesh::drawNode(Node *node, Program *prog) {
+void GltfMesh::drawNode(Node *node, util::Program *prog) {
     if (node->mesh) {
         if (node->mesh->prims.size() > 0) {
             // traverse the node hierarchy to the top-most parent to get the final matrix of the current node

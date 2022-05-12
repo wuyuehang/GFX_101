@@ -1,12 +1,19 @@
 #ifndef CONTROLLER_HPP
 #define CONTROLLER_HPP
 
+#if GL_BACKEND
+#include <GL/glew.h>
+#endif
+
+#if ES_BACKEND
+#include <GLES3/gl32.h>
+#endif
+
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "trackball.h"
-
-class GLFWwindow;
 
 namespace util {
 class Controller {

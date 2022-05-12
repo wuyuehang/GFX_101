@@ -42,10 +42,10 @@ private:
         PHONG_MODE,
     };
     int m_exclusive_mode;
-    Controller *m_ctrl;
+    util::Controller *m_ctrl;
     GltfMesh mesh;
     float m_roughness;
     std::map<std::string, GLuint> vaos;
-    std::map<std::string, Program *> progs;
+    std::map<std::string, util::Program *> progs;
 };
 #endif

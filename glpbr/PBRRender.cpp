@@ -32,7 +32,7 @@ void PBRRender::InitImGui() {
 
 PBRRender::PBRRender(int argc, char *argv[]) :m_width(1280), m_height(720) {
     InitGLFW();
-    m_ctrl = new TrackballController(m_window);
+    m_ctrl = new util::TrackballController(m_window);
     InitImGui();
     if (argc == 2) {
         mesh.load(std::string(argv[1]));

@@ -19,8 +19,8 @@ void PBRRender::BakeVAO() {
 }
 
 void PBRRender::BakeDefaultPipeline() {
-    std::vector<std::string> shaders { "./shaders/simple.vert", "./shaders/simple.frag" };
-    progs.insert(std::make_pair("DEFAULT", new Program(shaders)));
+    std::vector<std::string> shaders { "../glrender/shaders/simple.vert", "../glrender/shaders/simple.frag" };
+    progs.insert(std::make_pair("DEFAULT", new util::Program(shaders)));
 }
 
 void PBRRender::run_if_default() {
@@ -28,7 +28,7 @@ void PBRRender::run_if_default() {
         return;
     }
 
-    Program *prog = progs["DEFAULT"];
+    util::Program *prog = progs["DEFAULT"];
     prog->setMat4("view_mat", m_ctrl->get_view() * m_ctrl->get_model());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
     prog->use();
@@ -43,7 +43,6 @@ void PBRRender::run_if_default() {
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
-
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glBindVertexArray(vaos["GENERAL"]);
@@ -53,8 +52,8 @@ void PBRRender::run_if_default() {
 }
 
 void PBRRender::BakeWireframePipeline() {
-    std::vector<std::string> shaders { "./shaders/wireframe.vert", "./shaders/wireframe.frag" };
-    progs.insert(std::make_pair("WIREFRAME", new Program(shaders)));
+    std::vector<std::string> shaders { "../glrender/shaders/wireframe.vert", "../glrender/shaders/wireframe.frag" };
+    progs.insert(std::make_pair("WIREFRAME", new util::Program(shaders)));
 }
 
 void PBRRender::run_if_wireframe() {
@@ -62,7 +61,7 @@ void PBRRender::run_if_wireframe() {
         return;
     }
 
-    Program *prog = progs["WIREFRAME"];
+    util::Program *prog = progs["WIREFRAME"];
     prog->setMat4("view_mat", m_ctrl->get_view() * m_ctrl->get_model()); // aggregate controller's View * Model transform into View
     prog->setMat4("proj_mat", m_ctrl->get_proj());
     prog->use();
@@ -84,8 +83,8 @@ void PBRRender::run_if_wireframe() {
 }
 
 void PBRRender::BakePhongPipeline() {
-    std::vector<std::string> shaders { "./shaders/phong.vert", "./shaders/phong.frag" };
-    progs.insert(std::make_pair("PHONG", new Program(shaders)));
+    std::vector<std::string> shaders { "../glrender/shaders/phong.vert", "../glrender/shaders/phong.frag" };
+    progs.insert(std::make_pair("PHONG", new util::Program(shaders)));
 }
 
 void PBRRender::run_if_phong() {
@@ -143,8 +142,8 @@ void PBRRender::run_if_phong() {
 }
 
 void PBRRender::BakeDiffuseSpecularPipeline() {
-    std::vector<std::string> shaders { "./shaders/diffuse_specular.vert", "./shaders/diffuse_specular.frag" };
-    progs.insert(std::make_pair("DIFFUSE_SPECULAR", new Program(shaders)));
+    std::vector<std::string> shaders { "../glrender/shaders/diffuse_specular.vert", "../glrender/shaders/diffuse_specular.frag" };
+    progs.insert(std::make_pair("DIFFUSE_SPECULAR", new util::Program(shaders)));
 }
 
 void PBRRender::run_if_diffuse_specular() {
@@ -152,7 +151,7 @@ void PBRRender::run_if_diffuse_specular() {
         return;
     }
 
-    Program *prog = progs["DIFFUSE_SPECULAR"];
+    util::Program *prog = progs["DIFFUSE_SPECULAR"];
     prog->setMat4("view_mat", m_ctrl->get_view() * m_ctrl->get_model());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
 
