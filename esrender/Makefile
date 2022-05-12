@@ -1,12 +1,15 @@
 thirdparty = ../thirdparty
+util = ../util
+
 bin = main
 
-src = Controller.cpp \
-	Mesh.cpp \
-	Pipelines.cpp \
-	Program.cpp \
+src = Pipelines.cpp \
 	Render.cpp \
 	RenderCore.cpp
+
+src += $(util)/Controller.cpp \
+	$(util)/Mesh.cpp \
+	$(util)/Program.cpp
 
 src += $(thirdparty)/imgui.cpp \
 	$(thirdparty)/imgui_draw.cpp \
@@ -20,7 +23,7 @@ src += $(thirdparty)/tiny_obj_loader.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I. -I$(thirdparty) -Wall -Wformat -lglfw -lGLESv2 -ldl -lassimp
+CXXFLAGS = -std=c++11 -I. -I$(thirdparty) -I$(util) -Wall -Wformat -lglfw -lGLESv2 -ldl -lassimp -DES_BACKEND=1
 
 CFLAGS = $(CXXFLAGS)
 
@@ -31,6 +34,9 @@ CFLAGS = $(CXXFLAGS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(thirdparty)/%.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.o:$(util)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(bin): $(obj)

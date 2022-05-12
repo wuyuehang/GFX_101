@@ -50,10 +50,7 @@ public:
     ObjMesh() {};
     ~ObjMesh() {};
     void load(const std::string) override final;
-    void bind_diffuse(DrawObj &, uint32_t);
-    void bind_specular(DrawObj &, uint32_t);
-    void bind_roughness(DrawObj &, uint32_t);
-    void draw(DrawObj &);
+    void draw(util::Program *);
     std::vector<DrawObj> m_objects;
     std::vector<tinyobj::material_t> m_materials;
     std::map<std::string, GLuint> m_textures;

@@ -1,7 +1,14 @@
 #ifndef PROGRAM_HPP
 #define PROGRAM_HPP
 
+#if GL_BACKEND
 #include <GL/glew.h>
+#endif
+
+#if ES_BACKEND
+#include <GLES3/gl32.h>
+#endif
+
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>

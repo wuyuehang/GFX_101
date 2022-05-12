@@ -20,7 +20,7 @@ void Render::BakeVAO() {
 
 void Render::BakeDefaultPipeline() {
     std::vector<std::string> shaders { "./shaders/simple.vert", "./shaders/simple.frag" };
-    progs.insert(std::make_pair("DEFAULT", new Program(shaders)));
+    progs.insert(std::make_pair("DEFAULT", new util::Program(shaders)));
 }
 
 void Render::run_if_default() {
@@ -28,13 +28,11 @@ void Render::run_if_default() {
         return;
     }
 
-    Program *prog = progs["DEFAULT"];
+    util::Program *prog = progs["DEFAULT"];
     prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
     prog->use();
-
-    GLuint vao = vaos["GENERAL"];
 
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -47,17 +45,13 @@ void Render::run_if_default() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
-    glBindVertexArray(vao);
-    for (auto & obj : mesh.m_objects) {
-        mesh.bind_diffuse(obj, 0);
-        prog->setInt("TEX0", 0);
-        mesh.draw(obj);
-    }
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
 }
 
 void Render::BakeDiffuseSpecularPipeline() {
     std::vector<std::string> shaders { "./shaders/diffuse_specular.vert", "./shaders/diffuse_specular.frag" };
-    progs.insert(std::make_pair("DIFFUSE_SPECULAR", new Program(shaders)));
+    progs.insert(std::make_pair("DIFFUSE_SPECULAR", new util::Program(shaders)));
 }
 
 void Render::run_if_diffuse_specular() {
@@ -65,7 +59,7 @@ void Render::run_if_diffuse_specular() {
         return;
     }
 
-    Program *prog = progs["DIFFUSE_SPECULAR"];
+    util::Program *prog = progs["DIFFUSE_SPECULAR"];
     prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
@@ -75,8 +69,6 @@ void Render::run_if_diffuse_specular() {
     prog->setFloat("roughness", m_roughness);
     prog->use();
 
-    GLuint vao = vaos["GENERAL"];
-
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glClearDepthf(1.0);
@@ -88,17 +80,15 @@ void Render::run_if_diffuse_specular() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
-    glBindVertexArray(vao);
-    for (auto & obj : mesh.m_objects) {
-        mesh.draw(obj);
-    }
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
 }
 
 void Render::BakeVVNPipeline() {
     std::vector<std::string> shaders { "./shaders/visualize_vertex_normal.vert",
         "./shaders/visualize_vertex_normal.geom",
         "./shaders/visualize_vertex_normal.frag" };
-    progs.insert(std::make_pair("VISUALIZE_VERTEX_NORMAL", new Program(shaders)));
+    progs.insert(std::make_pair("VISUALIZE_VERTEX_NORMAL", new util::Program(shaders)));
 }
 
 void Render::run_if_vvn() {
@@ -106,13 +96,11 @@ void Render::run_if_vvn() {
         return;
     }
 
-    Program *prog = progs["VISUALIZE_VERTEX_NORMAL"];
+    util::Program *prog = progs["VISUALIZE_VERTEX_NORMAL"];
     prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
     prog->use();
-
-    GLuint vao = vaos["GENERAL"];
 
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -125,15 +113,13 @@ void Render::run_if_vvn() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
-    glBindVertexArray(vao);
-    for (auto & obj : mesh.m_objects) {
-        mesh.draw(obj);
-    }
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
 }
 
 void Render::BakePhongPipeline() {
     std::vector<std::string> shaders { "./shaders/phong.vert", "./shaders/phong.frag" };
-    progs.insert(std::make_pair("PHONG", new Program(shaders)));
+    progs.insert(std::make_pair("PHONG", new util::Program(shaders)));
 }
 
 void Render::run_if_phong() {
@@ -141,7 +127,7 @@ void Render::run_if_phong() {
         return;
     }
 
-    Program *prog = progs["PHONG"];
+    util::Program *prog = progs["PHONG"];
     prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
@@ -158,8 +144,6 @@ void Render::run_if_phong() {
     prog->setFloat("attenuation.Kq", 0.032);
     prog->use();
 
-    GLuint vao = vaos["GENERAL"];
-
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glClearDepthf(1.0);
@@ -171,25 +155,13 @@ void Render::run_if_phong() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
-    glBindVertexArray(vao);
-    for (auto & obj : mesh.m_objects) {
-        mesh.bind_diffuse(obj, 0);
-        prog->setVec3("material.Kd", obj.material.Kd);
-        prog->setInt("TEX0_DIFFUSE", 0);
-
-        mesh.bind_specular(obj, 1);
-        prog->setVec3("material.Ks", obj.material.Ks);
-        prog->setInt("TEX1_SPECULAR", 1);
-
-        mesh.bind_roughness(obj, 2);
-        prog->setInt("TEX2_ROUGHNESS", 2);
-        mesh.draw(obj);
-    }
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
 }
 
 void Render::BakeToonPipeline() {
     std::vector<std::string> shaders { "./shaders/toon.vert", "./shaders/toon.frag" };
-    progs.insert(std::make_pair("TOON", new Program(shaders)));
+    progs.insert(std::make_pair("TOON", new util::Program(shaders)));
 }
 
 void Render::run_if_toon() {
@@ -197,7 +169,7 @@ void Render::run_if_toon() {
         return;
     }
 
-    Program *prog = progs["TOON"];
+    util::Program *prog = progs["TOON"];
     prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
     prog->setMat4("view_mat", m_ctrl->get_view());
     prog->setMat4("proj_mat", m_ctrl->get_proj());
@@ -208,10 +180,7 @@ void Render::run_if_toon() {
     angle += 1000.0 / ImGui::GetIO().Framerate * 0.05;
     glm::vec3 orbit_light_loc = glm::vec3(m_ctrl->get_view() * glm::rotate(glm::mat4(1.0), glm::radians(angle), glm::vec3(0.0, 1.0, 0.0)) * glm::vec4(0.0, 0.0, 5.0, 1.0));
     prog->setVec3("light_loc[1]", orbit_light_loc);
-
     prog->use();
-
-    GLuint vao = vaos["GENERAL"];
 
     glViewport(0, 0, m_width, m_height);
     glClearColor(0.98, 0.90, 0.68, 0.0);
@@ -224,11 +193,6 @@ void Render::run_if_toon() {
     glFrontFace(GL_CCW);
     glCullFace(GL_BACK);
 
-    glBindVertexArray(vao);
-    for (auto & obj : mesh.m_objects) {
-        mesh.bind_diffuse(obj, 0);
-        prog->setVec3("material.Kd", obj.material.Kd);
-        prog->setInt("TEX0_DIFFUSE", 0);
-        mesh.draw(obj);
-    }
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
 }

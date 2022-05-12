@@ -6,45 +6,41 @@
 #include "stb_image.h"
 
 namespace util {
-void ObjMesh::bind_diffuse(DrawObj & obj, uint32_t slot) {
-    if (obj.material_id != -1) {
+
+void ObjMesh::draw(util::Program *prog) {
+    for (auto obj : m_objects) {
         std::string diffuse_tex = m_materials[obj.material_id].diffuse_texname;
         if (m_textures.find(diffuse_tex) != m_textures.end()) {
-            glActiveTexture(GL_TEXTURE0 + slot);
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_textures[diffuse_tex]);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            prog->setInt("TEX0_DIFFUSE", 0);
+            prog->setVec3("material.Kd", obj.material.Kd);
         }
-    }
-}
 
-void ObjMesh::bind_specular(DrawObj & obj, uint32_t slot) {
-    if (obj.material_id != -1) {
         std::string specular_tex = m_materials[obj.material_id].specular_texname;
         if (m_textures.find(specular_tex) != m_textures.end()) {
-            glActiveTexture(GL_TEXTURE0 + slot);
+            glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, m_textures[specular_tex]);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            prog->setInt("TEX1_SPECULAR", 1);
+            prog->setVec3("material.Ks", obj.material.Ks);
         }
-    }
-}
 
-void ObjMesh::bind_roughness(DrawObj & obj, uint32_t slot) {
-    if (obj.material_id != -1) {
         std::string roughness_tex = m_materials[obj.material_id].roughness_texname;
         if (m_textures.find(roughness_tex) != m_textures.end()) {
-            glActiveTexture(GL_TEXTURE0 + slot);
+            glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, m_textures[roughness_tex]);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            prog->setInt("TEX2_ROUGHNESS", 2);
         }
-    }
-}
 
-void ObjMesh::draw(DrawObj & obj) {
-    glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
-    glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+        glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+    }
 }
 
 void ObjMesh::load(const std::string filename) {

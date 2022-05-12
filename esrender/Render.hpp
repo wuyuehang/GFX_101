@@ -35,9 +35,9 @@ public:
 
 public:
     GLFWwindow *m_window;
+private:
     int32_t m_width;
     int32_t m_height;
-private:
     enum {
         DEFAULT_MODE = 0,
         VISUALIZE_VERTEX_NORMAL_MODE,
@@ -46,11 +46,11 @@ private:
         TOON_MODE,
     };
     int m_exclusive_mode;
-    Controller *m_ctrl;
-    AssimpMesh mesh;
+    util::Controller *m_ctrl;
+    util::AssimpMesh mesh;
     float m_roughness;
     std::map<std::string, GLuint> vaos;
-    std::map<std::string, Program *> progs;
+    std::map<std::string, util::Program *> progs;
 };
 
 #endif
