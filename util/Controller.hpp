@@ -8,6 +8,7 @@
 
 class GLFWwindow;
 
+namespace util {
 class Controller {
 public:
     virtual ~Controller() = 0;
@@ -48,5 +49,6 @@ private:
     float curr_quat[4];
     float prev_quat[4];
 };
+}
 
 #endif

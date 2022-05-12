@@ -52,10 +52,10 @@ private:
     int m_exclusive_mode;
     int32_t m_width;
     int32_t m_height;
-    Controller *m_ctrl;
-    AssimpMesh mesh;
+    util::Controller *m_ctrl;
+    util::AssimpMesh mesh;
     float m_roughness;
     std::map<std::string, GLuint> vaos;
-    std::map<std::string, Program *> progs;
+    std::map<std::string, util::Program *> progs;
 };
 #endif

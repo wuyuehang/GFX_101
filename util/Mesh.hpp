@@ -1,7 +1,14 @@
 #ifndef MESH_HPP
 #define MESH_HPP
 
+#if GL_BACKEND
 #include <GL/glew.h>
+#endif
+
+#if ES_BACKEND
+#include <GLES3/gl32.h>
+#endif
+
 #include <glm/glm.hpp>
 #include <string>
 #include <vector>
@@ -9,8 +16,10 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "Common.hpp"
+#include "Program.hpp"
 #include "tiny_obj_loader.h"
 
+namespace util {
 class MeshBase {
 public:
     ~MeshBase() {};
@@ -69,11 +78,9 @@ public:
     AssimpMesh() {};
     ~AssimpMesh() {};
     void load(const std::string) override final;
-    void bind_diffuse(DrawObj &, uint32_t);
-    void bind_specular(DrawObj &, uint32_t);
-    void bind_roughness(DrawObj &, uint32_t);
-    void draw(DrawObj &);
+    void draw(util::Program *);
     std::vector<DrawObj> m_objects;
     std::map<std::string, GLuint> m_textures;
 };
+}
 #endif

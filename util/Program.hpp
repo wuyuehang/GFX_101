@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-
+namespace util {
 class Program {
 public:
     Program() = delete;
@@ -14,6 +14,7 @@ public:
     Program(std::vector<std::string> &);
     ~Program() {}
     void use() const { glUseProgram(prog); }
+    GLuint program() const { return prog; }
     void setInt(const std::string & name, int value) const;
     void setFloat(const std::string & name, float value) const;
     void setVec3(const std::string & name, glm::vec3 & v) const;
@@ -24,5 +25,6 @@ private:
     GLenum parseShaderType(const std::string &);
     GLuint prog;
 };
+}
 
 #endif

@@ -2,6 +2,7 @@
 #include "Render.hpp"
 #include "trackball.h"
 
+namespace util {
 Controller::~Controller() {}
 
 TrackballController::TrackballController(GLFWwindow *glfw) {
@@ -87,4 +88,5 @@ void TrackballController::handle_input() {
     if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
         init_control_system = false;
     }
+}
 }

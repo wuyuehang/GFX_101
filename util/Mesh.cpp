@@ -5,6 +5,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+namespace util {
 void ObjMesh::bind_diffuse(DrawObj & obj, uint32_t slot) {
     if (obj.material_id != -1) {
         std::string diffuse_tex = m_materials[obj.material_id].diffuse_texname;
@@ -93,13 +94,13 @@ void ObjMesh::load(const std::string filename) {
     std::cout << "material = " << m_materials.size() << std::endl;
     std::cout << "shape    = " << shapes.size() << std::endl;
 
-    for (auto i = 0; i < m_materials.size(); i++) {
+    for (std::vector<tinyobj::material_t>::size_type i = 0; i < m_materials.size(); i++) {
         std::cout << "material[" << i << "].diffuse_texname = " << m_materials[i].diffuse_texname << std::endl;
         std::cout << "material[" << i << "].specular_texname = " << m_materials[i].specular_texname << std::endl;
         std::cout << "material[" << i << "].roughness_texname = " << m_materials[i].roughness_texname << std::endl;
     }
 
-    for (auto i = 0; i < m_materials.size(); i++) {
+    for (std::vector<tinyobj::material_t>::size_type i = 0; i < m_materials.size(); i++) {
         if (m_materials[i].diffuse_texname.length() > 0) {
             if (m_textures.find(m_materials[i].diffuse_texname) == m_textures.end()) {
                 std::string texture_filename = base_dir + m_materials[i].diffuse_texname; // assume in the same directory
@@ -168,7 +169,7 @@ void ObjMesh::load(const std::string filename) {
         // f 3/3/1 2/2/1 1/1/1
         // f 1/1/1 4/4/1 3/3/1
         // assume a face is a triangle
-        for (auto f = 0; f < shape.mesh.indices.size() / 3; f++) {
+        for (std::vector<tinyobj::index_t>::size_type f = 0; f < shape.mesh.indices.size() / 3; f++) {
             tinyobj::index_t v0 = shape.mesh.indices[3 * f + 0];
             tinyobj::index_t v1 = shape.mesh.indices[3 * f + 1];
             tinyobj::index_t v2 = shape.mesh.indices[3 * f + 2];
@@ -473,35 +474,37 @@ void AssimpMesh::load(const std::string filename) {
     m_model_mat = glm::scale(glm::mat4(1.0), glm::vec3(scale, scale, scale)) * m_model_mat;
 }
 
-void AssimpMesh::bind_diffuse(DrawObj & obj, uint32_t slot) {
-    if (!obj.material_names.diffuse_texname.empty()) {
-        glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.diffuse_texname]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+void AssimpMesh::draw(util::Program *prog) {
+    for (auto obj : m_objects) {
+        if (!obj.material_names.diffuse_texname.empty()) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.diffuse_texname]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            prog->setInt("TEX0_DIFFUSE", 0);
+            prog->setVec3("material.Kd", obj.material.Kd);
+        }
+
+        if (!obj.material_names.specular_texname.empty()) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.specular_texname]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            prog->setInt("TEX1_SPECULAR", 1);
+            prog->setVec3("material.Ks", obj.material.Ks);
+        }
+
+        if (!obj.material_names.roughness_texname.empty()) {
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.roughness_texname]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            prog->setInt("TEX2_ROUGHNESS", 2);
+        }
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.indexbuf_id);
+        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
+        glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
     }
 }
-
-void AssimpMesh::bind_specular(DrawObj & obj, uint32_t slot) {
-    if (!obj.material_names.specular_texname.empty()) {
-        glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.specular_texname]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-}
-
-void AssimpMesh::bind_roughness(DrawObj & obj, uint32_t slot) {
-    if (!obj.material_names.roughness_texname.empty()) {
-        glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, m_textures[obj.material_names.roughness_texname]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-}
-
-void AssimpMesh::draw(DrawObj & obj) {
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.indexbuf_id);
-    glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
-    glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
 }

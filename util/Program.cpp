@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 
+namespace util {
 void Program::readFile(const std::string & filename, std::string & source) {
     std::string line;
     std::ifstream f(filename.c_str());
@@ -98,4 +99,5 @@ void Program::setVec3(const std::string & name, glm::vec3 & value) const {
 
 void Program::setMat4(const std::string & name, const glm::mat4 & value) const {
     glProgramUniformMatrix4fv(prog, glGetUniformLocation(prog, name.c_str()), 1, GL_FALSE, &value[0][0]);
+}
 }
