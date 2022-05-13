@@ -1,14 +1,16 @@
 thirdparty = ../../thirdparty
-util = ../util
+util = ../../util
 bin = main
 
 src = main.cpp
-src += $(util)/Mesh.cpp
+src += $(util)/Mesh.cpp \
+	$(util)/Program.cpp
+
 src += $(thirdparty)/tiny_obj_loader.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
-CXXFLAGS = -std=c++11 -I$(util) -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -lSOIL
+CXXFLAGS = -std=c++11 -I$(util) -I$(thirdparty) -I. -Wall -Wformat -lglfw -lGLEW -lGL -DGL_BACKEND=1 -lassimp
 
 CFLAGS = $(CXXFLAGS)
 

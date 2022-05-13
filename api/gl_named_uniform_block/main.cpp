@@ -10,7 +10,7 @@
 #include "Util.hpp"
 
 GLuint VAO, UBO, P;
-Mesh mesh;
+util::ObjMesh mesh;
 glm::mat4 model_mat;
 glm::mat4 view_mat = glm::lookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0));
 glm::mat4 proj_mat = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
@@ -30,10 +30,10 @@ int main() {
     glDepthFunc(GL_LESS);
 
     std::vector<std::string> shaders { "./uniform_block.vert", "./simple.frag" };
-    P = util::CreateProgram(shaders);
+    P = gltest::CreateProgram(shaders);
     glUseProgram(P);
 
-    mesh.load("../../assets/obj/torus.obj", glm::mat4(1.0));
+    mesh.load("../../assets/obj/torus.obj");
     model_mat = mesh.get_model_mat();
 
     glGenVertexArrays(1, &VAO);

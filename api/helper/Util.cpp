@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace util {
+namespace gltest {
 
 static void loadGLSL(const std::string filename, std::string & code) {
     std::string line;

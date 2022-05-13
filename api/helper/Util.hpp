@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace util {
+namespace gltest {
 
 GLuint CreateProgram(std::vector<std::string> & files);
 
