@@ -8,6 +8,7 @@
 namespace gltest {
 
 GLuint CreateProgram(std::vector<std::string> & files);
+void DrawTexture(GLuint target);
 
 }
 #endif
