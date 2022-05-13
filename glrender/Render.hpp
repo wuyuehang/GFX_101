@@ -35,6 +35,10 @@ public:
     void run_if_phong();
     void BakeToonPipeline();
     void run_if_toon();
+    void BakeVisualizeZViewportPipeline();
+    void run_if_visualize_z_in_viewport();
+    void BakeVisualizeZViewspacePipeline();
+    void run_if_visualize_z_in_viewspace();
     void BakeCommand();
     void Gameloop();
 
@@ -47,6 +51,8 @@ private:
         VISUALIZE_VERTEX_NORMAL_MODE,
         DIFFUSE_SPECULAR_MODE,
         PHONG_MODE,
+        VISUALIZE_Z_IN_VIEWPORT_MODE,
+        VISUALIZE_Z_IN_VIEWSPACE_MODE,
         TOON_MODE,
     };
     int m_exclusive_mode;

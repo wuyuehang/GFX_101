@@ -21,6 +21,8 @@ Render::Render(int argc, char *argv[]) :m_width(1280), m_height(720) {
     BakeDiffuseSpecularPipeline();
     BakePhongPipeline();
     BakeToonPipeline();
+    BakeVisualizeZViewportPipeline(); // raw gl_FragCoord.z
+    BakeVisualizeZViewspacePipeline(); // inverse transfrom from viewport to view space.
 }
 
 Render::~Render() {
@@ -45,6 +47,8 @@ void Render::BakeCommand() {
     run_if_diffuse_specular();
     run_if_phong();
     run_if_toon();
+    run_if_visualize_z_in_viewport();
+    run_if_visualize_z_in_viewspace();
 }
 
 void Render::Gameloop() {
@@ -60,13 +64,15 @@ void Render::Gameloop() {
 
         // describe the ImGui UI
         ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); // Pin the UI
-        ImGui::SetNextWindowSize(ImVec2(250, 200), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(250, 250), ImGuiCond_Always);
         ImGui::Begin("Hello, OpenGL!");
         ImGui::RadioButton("Default", &m_exclusive_mode, DEFAULT_MODE);
         ImGui::RadioButton("Phong", &m_exclusive_mode, PHONG_MODE);
         ImGui::RadioButton("Wireframe", &m_exclusive_mode, WIREFRAME_MODE);
         ImGui::RadioButton("Vertex Normal", &m_exclusive_mode, VISUALIZE_VERTEX_NORMAL_MODE);
         ImGui::RadioButton("Toon", &m_exclusive_mode, TOON_MODE);
+        ImGui::RadioButton("Z depth (viewport space)", &m_exclusive_mode, VISUALIZE_Z_IN_VIEWPORT_MODE);
+        ImGui::RadioButton("Z depth (view space)", &m_exclusive_mode, VISUALIZE_Z_IN_VIEWSPACE_MODE);
         ImGui::RadioButton("Diffuse & Specular", &m_exclusive_mode, DIFFUSE_SPECULAR_MODE);
         ImGui::SliderFloat("Roughness", &m_roughness, 0.01, 256.0);
         ImGui::Text("Eye @ (%.1f, %.1f, %.1f)", m_ctrl->get_eye().x, m_ctrl->get_eye().y, m_ctrl->get_eye().z);

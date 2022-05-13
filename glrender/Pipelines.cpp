@@ -233,3 +233,70 @@ void Render::run_if_toon() {
     glBindVertexArray(vaos["GENERAL"]);
     mesh.draw(prog);
 }
+
+void Render::BakeVisualizeZViewportPipeline() {
+    std::vector<std::string> shaders { "./shaders/wireframe.vert", "./shaders/visualize_z_in_viewport.frag" };
+    progs.insert(std::make_pair("VISUALIZE_Z_IN_VIEWPORT", new util::Program(shaders)));
+}
+
+void Render::run_if_visualize_z_in_viewport() {
+    if (m_exclusive_mode != VISUALIZE_Z_IN_VIEWPORT_MODE) {
+        return;
+    }
+
+    util::Program *prog = progs["VISUALIZE_Z_IN_VIEWPORT"];
+    prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
+    prog->setMat4("view_mat", m_ctrl->get_view());
+    prog->setMat4("proj_mat", m_ctrl->get_proj());
+    prog->use();
+
+    glViewport(0, 0, m_width, m_height);
+    glClearColor(0.98, 0.90, 0.68, 0.0);
+    glClearDepthf(1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glCullFace(GL_BACK);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
+}
+
+void Render::BakeVisualizeZViewspacePipeline() {
+    std::vector<std::string> shaders { "./shaders/wireframe.vert", "./shaders/visualize_z_in_viewspace.frag" };
+    progs.insert(std::make_pair("VISUALIZE_Z_IN_VIEWSPACE", new util::Program(shaders)));
+}
+
+void Render::run_if_visualize_z_in_viewspace() {
+    if (m_exclusive_mode != VISUALIZE_Z_IN_VIEWSPACE_MODE) {
+        return;
+    }
+
+    util::Program *prog = progs["VISUALIZE_Z_IN_VIEWSPACE"];
+    prog->setMat4("model_mat", m_ctrl->get_model() * mesh.get_model_mat());
+    prog->setMat4("view_mat", m_ctrl->get_view());
+    prog->setMat4("proj_mat", m_ctrl->get_proj());
+
+    prog->setFloat("near", m_ctrl->get_near());
+    prog->setFloat("far", m_ctrl->get_far());
+    prog->use();
+
+    glViewport(0, 0, m_width, m_height);
+    glClearColor(0.98, 0.90, 0.68, 0.0);
+    glClearDepthf(1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glCullFace(GL_BACK);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    glBindVertexArray(vaos["GENERAL"]);
+    mesh.draw(prog);
+}

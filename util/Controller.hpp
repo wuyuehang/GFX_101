@@ -23,6 +23,8 @@ public:
     virtual glm::mat4 get_model() = 0;
     virtual glm::mat4 get_view() const = 0;
     glm::vec3 get_eye() const { return eye; }
+    float get_near() const { return near; }
+    float get_far() const { return far; }
     glm::mat4 get_proj() const { return glm::perspective(glm::radians(fov), ratio, near, far); }
 
 protected:
