@@ -89,6 +89,49 @@ GLuint CreateProgram(std::vector<std::string> & files) {
     return P;
 }
 
+GLuint CreateXFBProgram(std::string file, std::vector<const GLchar *> xfb_list, GLenum mode) {
+    // load source
+    std::string code;
+    loadGLSL(file, code);
+    const GLchar *tok = code.c_str();
+
+    // parse type
+    GLenum type = parseShaderType(file);
+    assert(type == GL_VERTEX_SHADER);
+
+    // compiling
+    GLuint vert = glCreateShader(type);
+    glShaderSource(vert, 1, &tok, NULL);
+    glCompileShader(vert);
+    GLint res;
+    glGetShaderiv(vert, GL_COMPILE_STATUS, &res);
+    if (!res)
+    {
+        GLchar info[512];
+        glGetShaderInfoLog(vert, 512, NULL, info);
+        std::cout << file << " COMPILATION_FAILED\n" << info << std::endl;
+        assert(0);
+    }
+
+    // linking
+    GLuint P = glCreateProgram();
+    glAttachShader(P, vert);
+    glTransformFeedbackVaryings(P, xfb_list.size(), xfb_list.data(), mode);
+    glLinkProgram(P);
+    glGetProgramiv(P, GL_LINK_STATUS, &res);
+    if (!res) {
+        GLchar info[512];
+        glGetProgramInfoLog(P, 512, NULL, info);
+        std::cout << "PROGRAM LINK FAILED\n" << info << std::endl;
+        assert(0);
+    }
+
+    // clean
+    glDeleteShader(vert);
+
+    return P;
+}
+
 static const char *drawtexture_vertex = "#version 460 core\n"
     "layout (location = 0) in vec2 vPos;\n"
     "layout (location = 1) in vec2 vUV;\n"
