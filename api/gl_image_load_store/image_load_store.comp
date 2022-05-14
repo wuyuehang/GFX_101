@@ -1,0 +1,24 @@
+#version 460 core
+
+#pragma debug(on)
+
+#define _X	1
+#define _Y	1200
+
+layout (local_size_x = _X, local_size_y = _Y) in;
+
+layout (binding = 0, rgba8) uniform readonly highp image2D srcObj;
+layout (binding = 1, rgba8) uniform writeonly highp image2D writeObj;
+
+shared vec4 tmp[_X*_Y];
+
+void main()
+{
+	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+
+	tmp[gl_LocalInvocationIndex] = imageLoad(srcObj, pos);
+
+	barrier();
+
+	imageStore(writeObj, pos, vec4(1.0) - tmp[gl_LocalInvocationIndex]);
+}

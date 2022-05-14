@@ -27,8 +27,10 @@ static GLenum parseShaderType(const std::string & filename) {
         return GL_VERTEX_SHADER;
     } else if (endsWith(filename, ".geom")) {
         return GL_GEOMETRY_SHADER;
-    }else if (endsWith(filename, ".frag")) {
+    } else if (endsWith(filename, ".frag")) {
         return GL_FRAGMENT_SHADER;
+    } else if (endsWith(filename, ".comp")) {
+        return GL_COMPUTE_SHADER;
     } else {
         assert(0);
     }
