@@ -32,7 +32,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    GLFWwindow *window = glfwCreateWindow(1024, 768, "uniform block", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(1024, 768, "gl separate shader", nullptr, nullptr);
     glfwMakeContextCurrent(window);
     glewInit();
 
