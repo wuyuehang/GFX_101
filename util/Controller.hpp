@@ -28,6 +28,12 @@ public:
     glm::mat4 get_proj() const { return glm::perspective(glm::radians(fov), ratio, near, far); }
 
 protected:
+    struct init_config {
+        glm::vec3 eye;
+        glm::vec3 front;
+        glm::vec3 up;
+    };
+    init_config m_init_config;
     glm::vec3 eye;
     glm::vec3 front;
     glm::vec3 up;
@@ -41,7 +47,15 @@ class TrackballController : public Controller {
 public:
     TrackballController() = delete;
     TrackballController(const TrackballController &) = delete;
-    TrackballController(GLFWwindow *glfw);
+    TrackballController(GLFWwindow *glfw, glm::vec3 eye_ = glm::vec3(0.0, 0.0, 3.0),
+        glm::vec3 front_ = glm::vec3(0.0), glm::vec3 up_ = glm::vec3(0.0, 1.0, 0.0)) {
+        m_init_config.eye = eye_;
+        m_init_config.front = front_;
+        m_init_config.up = up_;
+        assert(glfw != nullptr);
+        m_window = glfw;
+        glfwGetWindowSize(m_window, &m_width, &m_height);
+    }
     ~TrackballController() override {};
     void handle_input() override final;
     glm::mat4 get_view() const override final;
@@ -57,6 +71,41 @@ private:
     int m_height;
     float curr_quat[4];
     float prev_quat[4];
+};
+
+// fix view transform.
+// rotate skybox by x/y axis to give illusion that it is from "FPS" angle.
+// it is used for debug purpose to explore inside the skybox
+class SkyboxController : public Controller {
+public:
+    SkyboxController() = delete;
+    SkyboxController(const SkyboxController &) = delete;
+    SkyboxController(GLFWwindow *glfw, glm::vec3 eye_ = glm::vec3(0.0, 0.0, 3.0),
+        glm::vec3 front_ = glm::vec3(0.0), glm::vec3 up_ = glm::vec3(0.0, 1.0, 0.0)) {
+        m_init_config.eye = eye_;
+        m_init_config.front = front_;
+        m_init_config.up = up_;
+        assert(glfw != nullptr);
+        m_window = glfw;
+        glfwGetWindowSize(m_window, &m_width, &m_height);
+    }
+    ~SkyboxController() override {};
+    void handle_input() override final;
+    glm::mat4 get_view() const override final;
+    glm::mat4 get_model() {
+        // rotate horizon
+        glm::mat4 rot_y = glm::rotate(glm::mat4(1.0), glm::radians(curr_x_angle), glm::vec3(0.0, 1.0, 0.0));
+        // rotate vertical
+        glm::mat4 rot_x = glm::rotate(glm::mat4(1.0), glm::radians(curr_y_angle), glm::vec3(1.0, 0.0, 0.0));
+        return rot_x * rot_y;
+    }
+
+private:
+    GLFWwindow *m_window;
+    int m_width;
+    int m_height;
+    float curr_x_angle;
+    float curr_y_angle;
 };
 }
 

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include "stb_image.h"
 
 namespace gltest {
 
@@ -219,6 +220,32 @@ void DrawTexture(GLuint target) {
     glUniform1i(glGetUniformLocation(_p, "TEX0_DIFFUSE"), 0);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
     glBindVertexArray(0);
+}
+
+GLuint CreateCubemap(std::string dir) {
+    std::vector<std::string> faces = {
+        "right.png", "left.png", "top.png",
+        "bottom.png", "back.png", "front.png"
+    };
+    GLuint cubemap;
+    glGenTextures(1, &cubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+    int w, h, c;
+    uint8_t *ptr;
+    for (auto i = 0; i < 6; i++) {
+        std::string fullname = dir + faces[i];
+        ptr = stbi_load(fullname.c_str(), &w, &h, &c, STBI_rgb_alpha);
+        assert(ptr);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+        stbi_image_free(ptr);
+        ptr = nullptr;
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    return cubemap;
 }
 
 }
