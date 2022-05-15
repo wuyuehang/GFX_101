@@ -42,7 +42,7 @@ class ObjMesh : public MeshBase {
 public:
     struct DrawObj {
         GLuint buffer_id;
-        size_t material_id;
+        int material_id;
         std::vector<Vertex> vertices; // can be pruned
         Material material;
     };
