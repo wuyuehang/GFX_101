@@ -27,8 +27,12 @@ GLenum Program::parseShaderType(const std::string & filename) {
         return GL_VERTEX_SHADER;
     } else if (endsWith(filename, ".geom")) {
         return GL_GEOMETRY_SHADER;
-    }else if (endsWith(filename, ".frag")) {
+    } else if (endsWith(filename, ".frag")) {
         return GL_FRAGMENT_SHADER;
+    } else if (endsWith(filename, ".tesc")) {
+        return GL_TESS_CONTROL_SHADER;
+    } else if (endsWith(filename, ".tese")) {
+        return GL_TESS_EVALUATION_SHADER;
     } else {
         assert(0);
     }
