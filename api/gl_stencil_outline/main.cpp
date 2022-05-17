@@ -27,10 +27,10 @@ int main() {
     glewInit();
 
     util::Controller *ctrl = new util::TrackballController(window);
-    mesh.load("../../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
 
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+    mesh.load("../../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
@@ -78,8 +78,6 @@ int main() {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, 0);
             }
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.indexbuf_id);
-            glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
             glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
         }
 
@@ -98,8 +96,6 @@ int main() {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 P->setInt("TEX0_DIFFUSE", 0);
             }
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.indexbuf_id);
-            glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
             glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
         }
 

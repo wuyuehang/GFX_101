@@ -25,11 +25,11 @@ int main() {
     // either we put the eye location inside the unit cube.
     util::Controller *skybox_ctrl = new util::SkyboxController(window, glm::vec3(0.0, 0.0, 3.0));
     util::AssimpMesh box;
-    box.load("../../assets/obj/cube.obj");
 
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+    box.load("../../assets/obj/cube.obj");
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));

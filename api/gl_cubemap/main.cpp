@@ -12,6 +12,8 @@
 #include "Program.hpp"
 #include "stb_image.h"
 
+util::AssimpMesh box;
+
 int main() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -23,12 +25,11 @@ int main() {
     glewInit();
 
     util::Controller *ctrl = new util::TrackballController(window);
-    util::AssimpMesh box;
-    box.load("../../assets/obj/cube.obj");
 
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+    box.load("../../assets/obj/cube.obj");
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));

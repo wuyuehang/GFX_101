@@ -11,7 +11,7 @@
 #include "Program.hpp"
 #include "Util.hpp"
 
-util::ObjMesh mesh;
+util::AssimpMesh mesh;
 
 GLuint VAO; // offscreen vertex array object
 GLuint FBO; // offscreen framebuffer
@@ -39,6 +39,7 @@ void init_offscreen() {
 
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+    mesh.load("../../assets/obj/Buddha.obj");
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
@@ -61,7 +62,6 @@ int main() {
     glewInit();
 
     util::Controller *ctrl = new util::TrackballController(window);
-    mesh.load("../../assets/obj/Buddha.obj");
 
     init_offscreen();
 

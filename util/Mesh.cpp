@@ -331,7 +331,7 @@ void AssimpMesh::load(const std::string filename) {
         aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_FlipUVs);
     assert(pScene);
 
-    for (auto i = 0; i < pScene->mNumMaterials; i++) {
+    for (unsigned int i = 0; i < pScene->mNumMaterials; i++) {
         const aiMaterial *pMaterial = pScene->mMaterials[i];
 
         aiString path;
@@ -396,11 +396,11 @@ void AssimpMesh::load(const std::string filename) {
 
     box.xmax = box.ymax = box.zmax = -std::numeric_limits<float>::max();
     box.xmin = box.ymin = box.zmin = std::numeric_limits<float>::max();
-    for (auto i = 0; i < pScene->mNumMeshes; i++) {
+    for (unsigned int i = 0; i < pScene->mNumMeshes; i++) {
         DrawObj o {};
         const aiMesh *pMesh = pScene->mMeshes[i];
 
-        for (auto n = 0; n < pMesh->mNumVertices; n++) {
+        for (unsigned int n = 0; n < pMesh->mNumVertices; n++) {
             const aiVector3D *pos = &(pMesh->mVertices[n]);
             const aiVector3D *nor = &(pMesh->mNormals[n]);
             const aiVector3D *uv = &(pMesh->mTextureCoords[0][n]);
@@ -416,7 +416,7 @@ void AssimpMesh::load(const std::string filename) {
             box.zmax = std::max(box.zmax, pos->z);
         }
 
-        for (auto n = 0; n < pMesh->mNumFaces; n++) {
+        for (unsigned int n = 0; n < pMesh->mNumFaces; n++) {
             const aiFace & face = pMesh->mFaces[n];
             assert(face.mNumIndices == 3);
             o.indices.push_back(face.mIndices[0]);

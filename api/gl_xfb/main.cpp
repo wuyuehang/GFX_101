@@ -25,28 +25,30 @@ int main() {
     glewInit();
 
     util::Controller *ctrl = new util::TrackballController(window);
-    mesh.load("../../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
 
     // Pass 1 resource
     GLuint xfbVAO;
     glGenVertexArrays(1, &xfbVAO);
     glBindVertexArray(xfbVAO);
+    mesh.load("../../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, uv));
     glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
 
     std::vector<const char *> xfb_list;
     xfb_list.push_back("xfbPos");
+    xfb_list.push_back("xfbNor");
     xfb_list.push_back("xfbUV");
     GLuint xfbP = gltest::CreateXFBProgram("./xfb.vert", xfb_list, GL_INTERLEAVED_ATTRIBS);
 
     GLuint XFB;
     glGenBuffers(1, &XFB);
     glBindBuffer(GL_ARRAY_BUFFER, XFB);
-    glBufferData(GL_ARRAY_BUFFER, mesh.m_objects[0].indices.size() * (sizeof(glm::vec3(1.0)) + sizeof(glm::vec2(1.0))), nullptr, GL_DYNAMIC_COPY);
+    glBufferData(GL_ARRAY_BUFFER, mesh.m_objects[0].indices.size() * sizeof(Vertex), nullptr, GL_DYNAMIC_COPY);
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, XFB);
 
 #if _query_xfb_prim_
@@ -58,10 +60,14 @@ int main() {
     GLuint rsVAO;
     glGenVertexArrays(1, &rsVAO);
     glBindVertexArray(rsVAO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3(1.0))+sizeof(glm::vec2(1.0)), (const void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER, XFB);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec3(1.0))+sizeof(glm::vec2(1.0)), (const void*)sizeof(glm::vec3(1.0)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, uv));
+    glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
 
     std::vector<std::string> shaders { "./simple.vert", "./simple.frag" };
     GLuint rsP = gltest::CreateProgram(shaders);
@@ -91,8 +97,6 @@ int main() {
 #endif
         glEnable(GL_RASTERIZER_DISCARD);
         glBeginTransformFeedback(GL_TRIANGLES);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.m_objects[0].indexbuf_id);
-        glBindBuffer(GL_ARRAY_BUFFER, mesh.m_objects[0].buffer_id);
         glDrawElements(GL_TRIANGLES, mesh.m_objects[0].indices.size(), GL_UNSIGNED_INT, 0);
         glEndTransformFeedback();
 #if _query_xfb_prim_
@@ -106,10 +110,7 @@ int main() {
         glBindVertexArray(rsVAO);
         glUseProgram(rsP);
         glUniformMatrix4fv(glGetUniformLocation(rsP, "proj_mat"), 1, GL_FALSE, &ctrl->get_proj()[0][0]);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.m_objects[0].indexbuf_id);
-        glBindBuffer(GL_ARRAY_BUFFER, XFB);
         glDisable(GL_RASTERIZER_DISCARD);
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         if (!mesh.m_objects[0].material_names.diffuse_texname.empty()) {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, mesh.m_textures[mesh.m_objects[0].material_names.diffuse_texname]);

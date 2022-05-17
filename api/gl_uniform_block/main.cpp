@@ -33,11 +33,10 @@ int main() {
     P = gltest::CreateProgram(shaders);
     glUseProgram(P);
 
-    mesh.load("../../assets/obj/torus.obj");
-    model_mat = mesh.get_model_mat();
-
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+    mesh.load("../../assets/obj/torus.obj");
+    model_mat = mesh.get_model_mat();
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
@@ -82,7 +81,6 @@ int main() {
 
         for (auto & obj : mesh.m_objects) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
             glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
         }
         glfwSwapBuffers(window);

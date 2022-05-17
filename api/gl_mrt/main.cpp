@@ -48,6 +48,7 @@ void init_offscreen() {
 
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+    mesh.load("../../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
@@ -70,7 +71,6 @@ int main() {
     glewInit();
 
     util::Controller *ctrl = new util::TrackballController(window);
-    mesh.load("../../assets/gltf/metal_cup_ww2_style_cup_vintage/scene.gltf");
 
     init_offscreen();
 
