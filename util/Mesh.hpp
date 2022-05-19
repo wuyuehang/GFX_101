@@ -67,7 +67,7 @@ public:
     struct DrawObj {
         GLuint buffer_id;
         GLuint indexbuf_id;
-        std::vector<Vertex> vertices; // can be pruned
+        std::vector<AdvVertex> vertices; // can be pruned
         std::vector<uint32_t> indices; // can be pruned
         material_t material_names;
         Material material;

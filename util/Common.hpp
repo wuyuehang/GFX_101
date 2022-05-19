@@ -15,6 +15,14 @@ struct Vertex {
     glm::vec2 uv;
 };
 
+struct AdvVertex {
+    glm::vec3 pos;
+    glm::vec3 nor;
+    glm::vec2 uv;
+    glm::vec3 tan; // tangent
+    glm::vec3 bta; // bitangent
+};
+
 struct Material {
     glm::vec3 Ka; // ambient
     glm::vec3 Kd; // diffuse

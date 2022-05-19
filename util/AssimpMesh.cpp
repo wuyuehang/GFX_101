@@ -15,7 +15,7 @@ void AssimpMesh::load(const std::string filename) {
     // aiProcess_OptimizeMeshes
     auto pScene = Importer.ReadFile(filename.c_str(), aiProcess_Triangulate |
         aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices |
-        aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_FlipUVs);
+        aiProcess_JoinIdenticalVertices | aiProcess_GenUVCoords | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
     assert(pScene);
 
     for (unsigned int i = 0; i < pScene->mNumMaterials; i++) {
@@ -110,7 +110,13 @@ void AssimpMesh::load(const std::string filename) {
             const aiVector3D *pos = &(pMesh->mVertices[n]);
             const aiVector3D *nor = &(pMesh->mNormals[n]);
             const aiVector3D *uv = &(pMesh->mTextureCoords[0][n]);
-            o.vertices.push_back(Vertex { glm::vec3(pos->x, pos->y, pos->z), glm::vec3(nor->x, nor->y, nor->z), glm::vec2(uv->x, uv->y) });
+            const aiVector3D *tangent = &(pMesh->mTangents[n]);
+            assert(tangent);
+            const aiVector3D *bitangent = &(pMesh->mBitangents[n]);
+            assert(bitangent);
+            o.vertices.push_back(AdvVertex { glm::vec3(pos->x, pos->y, pos->z), glm::vec3(nor->x, nor->y, nor->z),
+                glm::vec2(uv->x, uv->y), glm::vec3(tangent->x, tangent->y, tangent->z),
+                glm::vec3(bitangent->x, bitangent->y, bitangent->z) });
 
             // update boudung box
             box.xmin = std::min(box.xmin, pos->x);
@@ -134,7 +140,7 @@ void AssimpMesh::load(const std::string filename) {
         assert(o.vertices.size() > 0);
         glGenBuffers(1, &o.buffer_id);
         glBindBuffer(GL_ARRAY_BUFFER, o.buffer_id);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*o.vertices.size(), o.vertices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(AdvVertex)*o.vertices.size(), o.vertices.data(), GL_STATIC_DRAW);
         glGenBuffers(1, &o.indexbuf_id);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.indexbuf_id);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*o.indices.size(), o.indices.data(), GL_STATIC_DRAW);

@@ -159,60 +159,66 @@ void DrawTexture(GLuint target) {
     };
 
     GLushort index_buf[] = { 0, 1, 2, 0, 2, 3 };
-    GLuint _vao, _vbo, _ibo, _vs, _fs, _p;
-    glGenVertexArrays(1, &_vao);
-    glBindVertexArray(_vao);
-    glGenBuffers(1, &_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buf), vertex_buf, GL_STATIC_DRAW);
-    glGenBuffers(1, &_ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index_buf), index_buf, GL_STATIC_DRAW);
+    static GLuint _vao = 0;
+    static GLuint _vbo, _ibo, _vs, _fs, _p;
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), 0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (const void *)(2*sizeof(GLfloat)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
+    if (_vao == 0) {
+        glGenVertexArrays(1, &_vao);
+        glBindVertexArray(_vao);
+        glGenBuffers(1, &_vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buf), vertex_buf, GL_STATIC_DRAW);
+        glGenBuffers(1, &_ibo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index_buf), index_buf, GL_STATIC_DRAW);
 
-    // compiling
-    _vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(_vs, 1, &drawtexture_vertex, NULL);
-    glCompileShader(_vs);
-    GLint res;
-    glGetShaderiv(_vs, GL_COMPILE_STATUS, &res);
-    if (!res)
-    {
-        GLchar info[512];
-        glGetShaderInfoLog(_vs, 512, NULL, info);
-        std::cout << "COMPILATION_FAILED\n" << info << std::endl;
-        assert(0);
-    }
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), 0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (const void *)(2*sizeof(GLfloat)));
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
 
-    _fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(_fs, 1, &drawtexture_fragment, NULL);
-    glCompileShader(_fs);
-    glGetShaderiv(_fs, GL_COMPILE_STATUS, &res);
-    if (!res)
-    {
-        GLchar info[512];
-        glGetShaderInfoLog(_fs, 512, NULL, info);
-        std::cout << "COMPILATION_FAILED\n" << info << std::endl;
-        assert(0);
+        // compiling
+        _vs = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(_vs, 1, &drawtexture_vertex, NULL);
+        glCompileShader(_vs);
+        GLint res;
+        glGetShaderiv(_vs, GL_COMPILE_STATUS, &res);
+        if (!res)
+        {
+            GLchar info[512];
+            glGetShaderInfoLog(_vs, 512, NULL, info);
+            std::cout << "COMPILATION_FAILED\n" << info << std::endl;
+            assert(0);
+        }
+
+        _fs = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(_fs, 1, &drawtexture_fragment, NULL);
+        glCompileShader(_fs);
+        glGetShaderiv(_fs, GL_COMPILE_STATUS, &res);
+        if (!res)
+        {
+            GLchar info[512];
+            glGetShaderInfoLog(_fs, 512, NULL, info);
+            std::cout << "COMPILATION_FAILED\n" << info << std::endl;
+            assert(0);
+        }
+        // linking
+        _p = glCreateProgram();
+        glAttachShader(_p, _vs);
+        glAttachShader(_p, _fs);
+        glLinkProgram(_p);
+        glGetProgramiv(_p, GL_LINK_STATUS, &res);
+        if (!res) {
+            GLchar info[512];
+            glGetProgramInfoLog(_p, 512, NULL, info);
+            std::cout << "PROGRAM LINK FAILED\n" << info << std::endl;
+            assert(0);
+        }
+        glDeleteShader(_vs);
+        glDeleteShader(_fs);
+    } else {
+        glBindVertexArray(_vao);
     }
-    // linking
-    _p = glCreateProgram();
-    glAttachShader(_p, _vs);
-    glAttachShader(_p, _fs);
-    glLinkProgram(_p);
-    glGetProgramiv(_p, GL_LINK_STATUS, &res);
-    if (!res) {
-        GLchar info[512];
-        glGetProgramInfoLog(_p, 512, NULL, info);
-        std::cout << "PROGRAM LINK FAILED\n" << info << std::endl;
-        assert(0);
-    }
-    glDeleteShader(_vs);
-    glDeleteShader(_fs);
 
     glUseProgram(_p);
     glActiveTexture(GL_TEXTURE0);
