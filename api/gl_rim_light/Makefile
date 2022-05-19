@@ -4,7 +4,7 @@ bin = main
 
 src = main.cpp
 src += $(util)/Controller.cpp \
-	$(util)/Mesh.cpp \
+	$(util)/AssimpMesh.cpp \
 	$(util)/Program.cpp
 
 src += $(thirdparty)/tiny_obj_loader.cc \

@@ -8,7 +8,7 @@ src = Pipelines.cpp \
 	RenderCore.cpp
 
 src += $(util)/Controller.cpp \
-	$(util)/Mesh.cpp \
+	$(util)/AssimpMesh.cpp \
 	$(util)/Program.cpp
 
 src += $(thirdparty)/imgui.cpp \

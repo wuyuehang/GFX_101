@@ -62,6 +62,7 @@ public:
         std::string diffuse_texname;
         std::string specular_texname;
         std::string roughness_texname;
+        std::string normal_texname;
     };
     struct DrawObj {
         GLuint buffer_id;
