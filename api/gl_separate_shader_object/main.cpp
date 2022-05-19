@@ -9,7 +9,7 @@
 #include "Mesh.hpp"
 
 GLuint VAO, VS, FS, PPL;
-util::ObjMesh mesh;
+util::AssimpMesh mesh;
 glm::mat4 model_mat;
 glm::mat4 view_mat = glm::lookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0));
 glm::mat4 proj_mat = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
@@ -60,11 +60,11 @@ int main() {
     glBindVertexArray(VAO);
     mesh.load("../../assets/obj/torus.obj");
     model_mat = mesh.get_model_mat();
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, pos));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(AdvVertex), (const void*)offsetof(AdvVertex, pos));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, nor));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(AdvVertex), (const void*)offsetof(AdvVertex, nor));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, uv));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(AdvVertex), (const void*)offsetof(AdvVertex, uv));
     glEnableVertexAttribArray(2);
 
     while (!glfwWindowShouldClose(window)) {
@@ -80,7 +80,7 @@ int main() {
 
         for (auto & obj : mesh.m_objects) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+            glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
         }
         glfwSwapBuffers(window);
     }

@@ -3,7 +3,7 @@ util = ../../util
 bin = main
 
 src = main.cpp
-src += $(util)/Mesh.cpp \
+src += $(util)/AssimpMesh.cpp \
 	$(util)/Program.cpp
 
 src += $(thirdparty)/tiny_obj_loader.cc

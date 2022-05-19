@@ -4,11 +4,10 @@ help = ../helper
 bin = main
 
 src = main.cpp
-src += $(util)/Mesh.cpp \
+src += $(util)/AssimpMesh.cpp \
 	$(util)/Program.cpp
 
 src += $(help)/Util.cpp
-src += $(thirdparty)/tiny_obj_loader.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
@@ -23,9 +22,6 @@ CFLAGS = $(CXXFLAGS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(util)/%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-%.o:$(thirdparty)/%.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(bin): $(obj)

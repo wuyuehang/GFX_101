@@ -7,8 +7,7 @@ src += $(util)/Controller.cpp \
 	$(util)/AssimpMesh.cpp \
 	$(util)/Program.cpp
 
-src += $(thirdparty)/tiny_obj_loader.cc \
-	$(thirdparty)/trackball.cc
+src += $(thirdparty)/trackball.cc
 
 obj = $(addsuffix .o, $(basename $(notdir $(src))))
 
