@@ -20,7 +20,6 @@ void AssimpMesh::load(const std::string filename) {
 
     for (unsigned int i = 0; i < pScene->mNumMaterials; i++) {
         const aiMaterial *pMaterial = pScene->mMaterials[i];
-
         aiString path;
         if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_DIFFUSE, 0, &path)) {
             if (m_textures.find(path.data) == m_textures.end()) {
@@ -105,6 +104,9 @@ void AssimpMesh::load(const std::string filename) {
     for (unsigned int i = 0; i < pScene->mNumMeshes; i++) {
         DrawObj o {};
         const aiMesh *pMesh = pScene->mMeshes[i];
+        o.firstIndex = static_cast<uint32_t>(indexBuffer.size()); // append to single index buffer
+        o.indexCount = pMesh->mNumFaces * 3;
+        std::cout << "Mesh[" << i << "] vertice = " << pMesh->mNumVertices << ", indice = " << o.indexCount << std::endl;
 
         for (unsigned int n = 0; n < pMesh->mNumVertices; n++) {
             const aiVector3D *pos = &(pMesh->mVertices[n]);
@@ -114,9 +116,9 @@ void AssimpMesh::load(const std::string filename) {
             assert(tangent);
             const aiVector3D *bitangent = &(pMesh->mBitangents[n]);
             assert(bitangent);
-            o.vertices.push_back(AdvVertex { glm::vec3(pos->x, pos->y, pos->z), glm::vec3(nor->x, nor->y, nor->z),
+            vertexBuffer.push_back(AdvVertex { glm::vec3(pos->x, pos->y, pos->z), glm::vec3(nor->x, nor->y, nor->z),
                 glm::vec2(uv->x, uv->y), glm::vec3(tangent->x, tangent->y, tangent->z),
-                glm::vec3(bitangent->x, bitangent->y, bitangent->z) });
+                glm::vec3(bitangent->x, bitangent->y, bitangent->z) }); // append to single index buffer
 
             // update boudung box
             box.xmin = std::min(box.xmin, pos->x);
@@ -131,19 +133,10 @@ void AssimpMesh::load(const std::string filename) {
         for (unsigned int n = 0; n < pMesh->mNumFaces; n++) {
             const aiFace & face = pMesh->mFaces[n];
             assert(face.mNumIndices == 3);
-            o.indices.push_back(face.mIndices[0]);
-            o.indices.push_back(face.mIndices[1]);
-            o.indices.push_back(face.mIndices[2]);
+            indexBuffer.push_back(face.mIndices[0]);
+            indexBuffer.push_back(face.mIndices[1]);
+            indexBuffer.push_back(face.mIndices[2]);
         }
-        std::cout << "vertice  = " << pMesh->mNumVertices << std::endl;
-        // BAKE VERTEX && INDICE
-        assert(o.vertices.size() > 0);
-        glGenBuffers(1, &o.buffer_id);
-        glBindBuffer(GL_ARRAY_BUFFER, o.buffer_id);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(AdvVertex)*o.vertices.size(), o.vertices.data(), GL_STATIC_DRAW);
-        glGenBuffers(1, &o.indexbuf_id);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o.indexbuf_id);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*o.indices.size(), o.indices.data(), GL_STATIC_DRAW);
         // BAKE MATERIAL
         const aiMaterial *pMaterial = pScene->mMaterials[pMesh->mMaterialIndex];
         aiString path;
@@ -171,6 +164,17 @@ void AssimpMesh::load(const std::string filename) {
         }
         m_objects.push_back(o);
     }
+
+    // BAKE VERTEX && INDICE
+    assert(indexBuffer.size() > 0);
+    assert(vertexBuffer.size() > 0);
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(AdvVertex)*vertexBuffer.size(), vertexBuffer.data(), GL_STATIC_DRAW);
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*indexBuffer.size(), indexBuffer.data(), GL_STATIC_DRAW);
+
     std::cout << "material = " << pScene->mNumMaterials << std::endl;
     std::cout << "shape    = " << pScene->mNumMeshes << std::endl;
 
@@ -188,6 +192,8 @@ void AssimpMesh::load(const std::string filename) {
 }
 
 void AssimpMesh::draw(util::Program *prog) {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     for (auto obj : m_objects) {
         if (!obj.material_names.diffuse_texname.empty()) {
             glActiveTexture(GL_TEXTURE0);
@@ -214,10 +220,7 @@ void AssimpMesh::draw(util::Program *prog) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             prog->setInt("TEX2_ROUGHNESS", 2);
         }
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.indexbuf_id);
-        glBindBuffer(GL_ARRAY_BUFFER, obj.buffer_id);
-        glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)));
     }
 }
 }

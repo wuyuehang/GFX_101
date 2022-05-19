@@ -48,7 +48,7 @@ int main() {
     GLuint XFB;
     glGenBuffers(1, &XFB);
     glBindBuffer(GL_ARRAY_BUFFER, XFB);
-    glBufferData(GL_ARRAY_BUFFER, mesh.m_objects[0].indices.size() * sizeof(Vertex), nullptr, GL_DYNAMIC_COPY);
+    glBufferData(GL_ARRAY_BUFFER, mesh.get_index_num() * sizeof(Vertex), nullptr, GL_DYNAMIC_COPY);
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, XFB);
 
 #if _query_xfb_prim_
@@ -97,13 +97,15 @@ int main() {
 #endif
         glEnable(GL_RASTERIZER_DISCARD);
         glBeginTransformFeedback(GL_TRIANGLES);
-        glDrawElements(GL_TRIANGLES, mesh.m_objects[0].indices.size(), GL_UNSIGNED_INT, 0);
+        for (auto obj : mesh.m_objects) {
+            glDrawElements(GL_TRIANGLES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)));
+        }
         glEndTransformFeedback();
 #if _query_xfb_prim_
         glEndQuery(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN);
         GLuint num_prim;
         glGetQueryObjectuiv(xfb_query, GL_QUERY_RESULT, &num_prim);
-        std::cout << "mesh.m_objects[0] contains " << mesh.m_objects[0].indices.size() / 3 << " primitives" << std::endl;
+        std::cout << "mesh contains " << mesh.get_index_num() / 3 << " primitives" << std::endl;
         std::cout << "xfb writes " << num_prim << " primitives" << std::endl;
 #endif
         // Pass 2. draw the xfb
@@ -118,7 +120,7 @@ int main() {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             glUniform1i(glGetUniformLocation(rsP, "TEX0_DIFFUSE"), 0);
         }
-        glDrawArrays(GL_TRIANGLES, 0, mesh.m_objects[0].indices.size()); // note that, we are flatting the vertex buffer
+        glDrawArrays(GL_TRIANGLES, 0, mesh.get_index_num()); // note that, we are flatting the vertex buffer
         glfwSwapBuffers(window);
     }
 

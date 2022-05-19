@@ -78,7 +78,7 @@ int main() {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 P->setInt("TEX0_DIFFUSE", 0);
             }
-            glDrawElementsInstanced(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0, 16);
+            glDrawElementsInstanced(GL_TRIANGLES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)), 16);
         }
         glfwSwapBuffers(window);
     }

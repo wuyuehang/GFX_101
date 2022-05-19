@@ -109,7 +109,7 @@ int main()
         meshP->setFloat("uOuterLevel", Outer_level);
         meshP->setFloat("uInnerLevel", Inner_level);
         for (auto obj : mesh.m_objects) {
-            glDrawElements(GL_PATCHES, obj.indices.size(), GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_PATCHES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)));
         }
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

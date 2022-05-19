@@ -65,10 +65,8 @@ public:
         std::string normal_texname;
     };
     struct DrawObj {
-        GLuint buffer_id;
-        GLuint indexbuf_id;
-        std::vector<AdvVertex> vertices; // can be pruned
-        std::vector<uint32_t> indices; // can be pruned
+        uint32_t firstIndex;
+        uint32_t indexCount;
         material_t material_names;
         Material material;
     };
@@ -77,8 +75,14 @@ public:
     ~AssimpMesh() {};
     void load(const std::string) override final;
     void draw(util::Program *);
+    uint32_t get_vertex_num() const { return vertexBuffer.size(); }
+    uint32_t get_index_num() const { return indexBuffer.size(); }
     std::vector<DrawObj> m_objects;
     std::map<std::string, GLuint> m_textures;
+private:
+    GLuint EBO, VBO;
+    std::vector<uint32_t> indexBuffer;
+    std::vector<AdvVertex> vertexBuffer;
 };
 }
 #endif

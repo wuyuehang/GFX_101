@@ -91,13 +91,10 @@ int main() {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             P->setInt("TEX0_DIFFUSE", 0);
         }
-        glDrawElements(GL_TRIANGLES, mesh.m_objects[0].indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, mesh.m_objects[0].indexCount, GL_UNSIGNED_INT, (const void *)(mesh.m_objects[0].firstIndex * sizeof(GLuint)));
 
         static uint8_t log = 0;
         if (log == 0) {
-            std::cout << "mesh.m_objects[0] contains " << mesh.m_objects[0].vertices.size() << " vertices" << std::endl;
-            std::cout << "mesh.m_objects[0] contains " << mesh.m_objects[0].indices.size() << " indices" << std::endl;
-            std::cout << "mesh.m_objects[0] contains " << mesh.m_objects[0].indices.size() / 3 << " primitives" << std::endl;
             {
                 glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, acVertice);
                 GLuint *ptr = (GLuint *)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY);

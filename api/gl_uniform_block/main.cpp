@@ -81,7 +81,7 @@ int main() {
 
         for (auto & obj : mesh.m_objects) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            glDrawElements(GL_TRIANGLES, obj.indices.size(), GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_TRIANGLES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)));
         }
         glfwSwapBuffers(window);
     }
