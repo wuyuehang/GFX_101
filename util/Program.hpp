@@ -26,6 +26,7 @@ public:
     void setFloat(const std::string & name, float value) const;
     void setVec3(const std::string & name, glm::vec3 & v) const;
     void setMat4(const std::string & name, const glm::mat4 & v) const;
+    void setFloatArray(const std::string & name, GLsizei count, GLfloat *value) const;
 private:
     void readFile(const std::string &, std::string &);
     bool endsWith(const std::string &, const std::string &);
