@@ -23,7 +23,9 @@ public:
     void use() const { glUseProgram(prog); }
     GLuint program() const { return prog; }
     void setInt(const std::string & name, int value) const;
+    void setUVec2(const std::string & name, unsigned int v0, unsigned int v1) const;
     void setFloat(const std::string & name, float value) const;
+    void setVec2(const std::string & name, glm::vec2 & v) const;
     void setVec3(const std::string & name, glm::vec3 & v) const;
     void setMat4(const std::string & name, const glm::mat4 & v) const;
     void setFloatArray(const std::string & name, GLsizei count, GLfloat *value) const;

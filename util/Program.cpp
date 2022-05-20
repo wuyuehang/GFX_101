@@ -93,8 +93,16 @@ void Program::setInt(const std::string & name, int value) const {
     glProgramUniform1i(prog, glGetUniformLocation(prog, name.c_str()), value);
 }
 
+void Program::setUVec2(const std::string & name, unsigned int v0, unsigned int v1) const {
+    glProgramUniform2ui(prog, glGetUniformLocation(prog, name.c_str()), v0, v1);
+}
+
 void Program::setFloat(const std::string & name, float value) const {
     glProgramUniform1f(prog, glGetUniformLocation(prog, name.c_str()), value);
+}
+
+void Program::setVec2(const std::string & name, glm::vec2 & value) const {
+    glProgramUniform2fv(prog, glGetUniformLocation(prog, name.c_str()), 1, &value[0]);
 }
 
 void Program::setVec3(const std::string & name, glm::vec3 & value) const {
