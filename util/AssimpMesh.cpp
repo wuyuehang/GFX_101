@@ -223,4 +223,12 @@ void AssimpMesh::draw(util::Program *prog) {
         glDrawElements(GL_TRIANGLES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)));
     }
 }
+
+void AssimpMesh::draw_polygon() {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    for (auto obj : m_objects) {
+        glDrawElements(GL_TRIANGLES, obj.indexCount, GL_UNSIGNED_INT, (const void *)(obj.firstIndex * sizeof(GLuint)));
+    }
+}
 }

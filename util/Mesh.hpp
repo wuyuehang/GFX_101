@@ -75,6 +75,7 @@ public:
     ~AssimpMesh() {};
     void load(const std::string) override final;
     void draw(util::Program *);
+    void draw_polygon();
     uint32_t get_vertex_num() const { return vertexBuffer.size(); }
     uint32_t get_index_num() const { return indexBuffer.size(); }
     std::vector<DrawObj> m_objects;
