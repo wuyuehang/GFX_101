@@ -34,6 +34,8 @@ void AssimpMesh::load(const std::string filename) {
                 glGenTextures(1, &tid);
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glBindTexture(GL_TEXTURE_2D, 0);
                 stbi_image_free(ptr);
 
@@ -53,6 +55,8 @@ void AssimpMesh::load(const std::string filename) {
                 glGenTextures(1, &tid);
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glBindTexture(GL_TEXTURE_2D, 0);
                 stbi_image_free(ptr);
 
@@ -72,6 +76,8 @@ void AssimpMesh::load(const std::string filename) {
                 glGenTextures(1, &tid);
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glBindTexture(GL_TEXTURE_2D, 0);
                 stbi_image_free(ptr);
 
@@ -91,6 +97,29 @@ void AssimpMesh::load(const std::string filename) {
                 glGenTextures(1, &tid);
                 glBindTexture(GL_TEXTURE_2D, tid);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                stbi_image_free(ptr);
+
+                m_textures.insert(std::make_pair(path.data, tid));
+            }
+        }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_AMBIENT, 0, &path)) {
+            if (m_textures.find(path.data) == m_textures.end()) {
+                std::string texture_filename = base_dir + path.data;
+                int w, h, c;
+                uint8_t *ptr = stbi_load(texture_filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
+                assert(ptr);
+                std::cout << "ao_texture: " << texture_filename << ", w = " << ", h = "
+                    << h << ", comp = " << c << std::endl;
+
+                GLuint tid;
+                glGenTextures(1, &tid);
+                glBindTexture(GL_TEXTURE_2D, tid);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glBindTexture(GL_TEXTURE_2D, 0);
                 stbi_image_free(ptr);
 
@@ -151,6 +180,9 @@ void AssimpMesh::load(const std::string filename) {
         }
         if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_NORMALS, 0, &path)) {
             o.material_names.normal_texname = path.data;
+        }
+        if (AI_SUCCESS == aiGetMaterialTexture(pMaterial, aiTextureType_AMBIENT, 0, &path)) {
+            o.material_names.ao_texname = path.data;
         }
         aiColor4D K;
         if (AI_SUCCESS == aiGetMaterialColor(pMaterial, AI_MATKEY_COLOR_AMBIENT, &K)) {

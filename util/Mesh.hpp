@@ -63,6 +63,7 @@ public:
         std::string specular_texname;
         std::string roughness_texname;
         std::string normal_texname;
+        std::string ao_texname;
     };
     struct DrawObj {
         uint32_t firstIndex;
