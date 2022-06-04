@@ -64,6 +64,7 @@ public:
         std::string roughness_texname;
         std::string normal_texname;
         std::string ao_texname;
+        std::string displacement_texname;
     };
     struct DrawObj {
         uint32_t firstIndex;
