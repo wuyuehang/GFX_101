@@ -21,7 +21,7 @@ void main() {
 
         float sampleDepth = texture(TEX0_POS_VIEWSPACE, Sample_uv).z; // along the same direction, the reference depth
 
-        if (Sample_viewspace.z < sampleDepth) {
+        if (Sample_viewspace.z >= sampleDepth) { // in viewspace, larger Z means nearer)
             //
         } else {
             AO += 1.0; // occluded by itself
