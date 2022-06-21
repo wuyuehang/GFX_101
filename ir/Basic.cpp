@@ -13,6 +13,19 @@ int main() {
         FunctionType *funcType = FunctionType::get(TheBuilder.getInt32Ty(), false);
         Function *fooFunc = Function::Create(funcType, Function::ExternalLinkage, "foo", TheModule);
         verifyFunction(*fooFunc);
+
+        TheModule->getOrInsertGlobal("g_foo", TheBuilder.getInt32Ty());
+        GlobalVariable *gVar = TheModule->getNamedGlobal("g_foo");
+        gVar->setLinkage(GlobalValue::CommonLinkage);
+        const DataLayout &DL = TheModule->getDataLayout();
+        Align Alignment = DL.getValueOrABITypeAlignment(gVar->getAlign(), gVar->getValueType());
+        gVar->setAlignment(Alignment);
+
+        BasicBlock *entryBB = BasicBlock::Create(TheContext, "entry", fooFunc);
+        TheBuilder.SetInsertPoint(entryBB);
+        TheBuilder.CreateRet(TheBuilder.getInt32(0));
+
+        verifyFunction(*fooFunc);
     }
 
     TheModule->dump();
