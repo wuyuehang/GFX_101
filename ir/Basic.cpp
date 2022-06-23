@@ -62,6 +62,34 @@ int main() {
             Value *arg1 = func->getArg(1);
             TheBuilder.CreateRet(TheBuilder.CreateMul(arg0, arg1));
         }
+        {
+            std::vector<Type *> argTypes;
+            argTypes.push_back(Type::getInt32Ty(TheContext));
+            argTypes.push_back(Type::getInt32Ty(TheContext));
+            FunctionType *funcType = FunctionType::get(TheBuilder.getInt32Ty(), argTypes, false);
+            Function *func = Function::Create(funcType, Function::ExternalLinkage, "phi", TheModule);
+
+            BasicBlock *entryBB = BasicBlock::Create(TheContext, "entry", func);
+            BasicBlock *equalBB = BasicBlock::Create(TheContext, "==", func);
+            BasicBlock *noneqBB = BasicBlock::Create(TheContext, "!=", func);
+            BasicBlock *mergeBB = BasicBlock::Create(TheContext, "reconv", func);
+            TheBuilder.SetInsertPoint(entryBB);
+            Value *arg0 = func->arg_begin();
+            Value *arg1 = func->getArg(1);
+            Value *cond = TheBuilder.CreateICmpEQ(arg0, arg1);
+            TheBuilder.CreateCondBr(cond, equalBB, noneqBB);
+
+            TheBuilder.SetInsertPoint(equalBB);
+            TheBuilder.CreateBr(mergeBB);
+            TheBuilder.SetInsertPoint(noneqBB);
+            TheBuilder.CreateBr(mergeBB);
+
+            TheBuilder.SetInsertPoint(mergeBB);
+            PHINode *phi = TheBuilder.CreatePHI(func->getReturnType(), 2);
+            phi->addIncoming(TheBuilder.getInt32(1), equalBB);
+            phi->addIncoming(TheBuilder.getInt32(0), noneqBB);
+            TheBuilder.CreateRet(phi);
+        }
     }
 
     TheModule->dump();
