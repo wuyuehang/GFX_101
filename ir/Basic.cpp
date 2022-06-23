@@ -49,6 +49,19 @@ int main() {
             }
             verifyFunction(*barFunc);
         }
+        {
+            std::vector<Type *> argTypes;
+            argTypes.push_back(Type::getInt32Ty(TheContext));
+            argTypes.push_back(Type::getInt32Ty(TheContext));
+            FunctionType *funcType = FunctionType::get(TheBuilder.getInt32Ty(), argTypes, false);
+            Function *func = Function::Create(funcType, Function::ExternalLinkage, "curry", TheModule);
+
+            BasicBlock *entryBB = BasicBlock::Create(TheContext, "entry", func);
+            TheBuilder.SetInsertPoint(entryBB);
+            Value *arg0 = func->arg_begin();
+            Value *arg1 = func->getArg(1);
+            TheBuilder.CreateRet(TheBuilder.CreateMul(arg0, arg1));
+        }
     }
 
     TheModule->dump();
