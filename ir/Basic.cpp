@@ -90,6 +90,35 @@ int main() {
             phi->addIncoming(TheBuilder.getInt32(0), noneqBB);
             TheBuilder.CreateRet(phi);
         }
+        {
+            // for (i = 0; i < b; i++) { a++; } return a;
+            std::vector<Type *> argTypes;
+            argTypes.push_back(Type::getInt32Ty(TheContext));
+            argTypes.push_back(Type::getInt32Ty(TheContext));
+            FunctionType *funcType = FunctionType::get(TheBuilder.getInt32Ty(), argTypes, false);
+            Function *func = Function::Create(funcType, Function::ExternalLinkage, "for_loop", TheModule);
+
+            BasicBlock *entryBB = BasicBlock::Create(TheContext, "entry", func);
+            BasicBlock *loopBB = BasicBlock::Create(TheContext, "loop", func);
+            BasicBlock *exitBB = BasicBlock::Create(TheContext, "exit", func);
+
+            TheBuilder.SetInsertPoint(entryBB);
+            TheBuilder.CreateBr(loopBB);
+
+            TheBuilder.SetInsertPoint(loopBB);
+            PHINode *phi_i = TheBuilder.CreatePHI(func->getReturnType(), 2, "i");
+            phi_i->addIncoming(TheBuilder.getInt32(1), entryBB);
+
+            Value *next_i = TheBuilder.CreateAdd(phi_i, TheBuilder.getInt32(1), "next_i");
+            phi_i->addIncoming(next_i, loopBB);
+
+            Value *res = TheBuilder.CreateAdd(func->getArg(0), func->getArg(0), "res");
+            Value *cond = TheBuilder.CreateICmpEQ(next_i, func->getArg(1));
+            TheBuilder.CreateCondBr(cond, exitBB, loopBB);
+
+            TheBuilder.SetInsertPoint(exitBB);
+            TheBuilder.CreateRet(res);
+        }
     }
 
     TheModule->dump();
