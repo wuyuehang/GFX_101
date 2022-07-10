@@ -66,6 +66,17 @@ public:
         vkEnumeratePhysicalDevices(instance, &pdev_count, physical_dev.data());
         pdev = physical_dev[0];
 
+#if 0
+        {
+            uint32_t dev_ext_nbr;
+            vkEnumerateDeviceExtensionProperties(pdev, nullptr, &dev_ext_nbr, nullptr);
+            std::vector<VkExtensionProperties> dev_ext(dev_ext_nbr);
+            vkEnumerateDeviceExtensionProperties(pdev, nullptr, &dev_ext_nbr, dev_ext.data());
+            for (auto & it : dev_ext) {
+                std::cout << "device extension name: " << it.extensionName << std::endl;
+            }
+        }
+#endif
         uint32_t queue_prop_count;
         q_family_index = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(pdev, &queue_prop_count, nullptr);
@@ -87,6 +98,21 @@ public:
         VkDeviceCreateInfo dev_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
         dev_info.queueCreateInfoCount = 1;
         dev_info.pQueueCreateInfos = &queue_info;
+
+        std::vector<const char *> dev_ext;
+        //dev_ext.push_back("VK_EXT_shader_subgroup_ballot");
+        //dev_ext.push_back("VK_EXT_shader_subgroup_vote");
+        dev_ext.push_back("VK_EXT_subgroup_size_control");
+        dev_info.enabledExtensionCount = dev_ext.size();
+        dev_info.ppEnabledExtensionNames = dev_ext.data();
+        VkPhysicalDeviceSubgroupSizeControlFeaturesEXT ssc;
+        ssc.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
+        ssc.pNext = nullptr;
+        ssc.subgroupSizeControl = VK_FALSE;
+        ssc.computeFullSubgroups = VK_TRUE;
+#if 1
+        dev_info.pNext = &ssc;
+#endif
 
         vkCreateDevice(pdev, &dev_info, nullptr, &dev);
         //VkBool32 present_supported = VK_FALSE;
@@ -243,6 +269,7 @@ public:
         vkCreateShaderModule(dev, &shader_info, nullptr, &comp);
 
         VkPipelineShaderStageCreateInfo comp_stage_info { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        comp_stage_info.flags = VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT; // force populate full subgroup size
         comp_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
         comp_stage_info.module = comp;
         comp_stage_info.pName = "main";
