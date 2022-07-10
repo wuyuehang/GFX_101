@@ -16,6 +16,9 @@ main : main.cpp
 spv :
 	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V gl_SubgroupInvocationID.comp.glsl -o gl_SubgroupInvocationID.comp.spv
 	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupElect.comp.glsl -o subgroupElect.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAll.comp.glsl -o subgroupAll.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAny.comp.glsl -o subgroupAny.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAllEqual.comp.glsl -o subgroupAllEqual.comp.spv
 
 clean:
 	rm -rf $(binary)

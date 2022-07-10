@@ -101,8 +101,8 @@ public:
 
         std::vector<const char *> dev_ext;
         //dev_ext.push_back("VK_EXT_shader_subgroup_ballot");
-        //dev_ext.push_back("VK_EXT_shader_subgroup_vote");
         dev_ext.push_back("VK_EXT_subgroup_size_control");
+        dev_ext.push_back("VK_EXT_shader_subgroup_vote");
         dev_info.enabledExtensionCount = dev_ext.size();
         dev_info.ppEnabledExtensionNames = dev_ext.data();
         VkPhysicalDeviceSubgroupSizeControlFeaturesEXT ssc;
@@ -331,7 +331,8 @@ public:
             void *buf_ptr;
             vkMapMemory(dev, resbuf_mem, 0, SSBO_SIZE, 0, &buf_ptr);
             for (int i = 0; i < ELE_NUM; i++) {
-                std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                //std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                assert(*(static_cast<int *>(buf_ptr) + i) == i);
             }
             vkUnmapMemory(dev, resbuf_mem);
         }
@@ -362,7 +363,110 @@ public:
             void *buf_ptr;
             vkMapMemory(dev, resbuf_mem, 0, SSBO_SIZE, 0, &buf_ptr);
             for (int i = 0; i < ELE_NUM; i++) {
-                std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                //std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                if (i == 0) {
+                    assert(*(static_cast<int *>(buf_ptr) + i) == i);
+                } else {
+                    assert(*(static_cast<int *>(buf_ptr) + i) == 66666666);
+                }
+            }
+            vkUnmapMemory(dev, resbuf_mem);
+        }
+        // VK_EXT_shader_subgroup_vote
+        {
+            VkPipeline p = CreateComputePipeline("subgroupAll.comp.spv"); pipelines.push_back(p);
+            vkBeginCommandBuffer(cmdbuf, &cmdbuf_begin_info);
+            vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, p);
+            vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &ds, 0, nullptr);
+            // prefill magic number
+            vkCmdFillBuffer(cmdbuf, dstbuf, 0, SSBO_SIZE, 66666666);
+            // write to dstbuf
+            vkCmdDispatch(cmdbuf, 1, 1, 1); // (1x1x1), (32x1x1)
+            // copy the result back to resbuf
+            VkBufferCopy region {
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = SSBO_SIZE,
+            };
+            vkCmdCopyBuffer(cmdbuf, dstbuf, resbuf, 1, &region);
+            vkEndCommandBuffer(cmdbuf);
+
+            VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cmdbuf;
+            vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+            vkDeviceWaitIdle(dev);
+            // verify
+            void *buf_ptr;
+            vkMapMemory(dev, resbuf_mem, 0, SSBO_SIZE, 0, &buf_ptr);
+            for (int i = 0; i < ELE_NUM; i++) {
+                //std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                assert(*(static_cast<int *>(buf_ptr) + i) == i);
+            }
+            vkUnmapMemory(dev, resbuf_mem);
+        }
+        {
+            VkPipeline p = CreateComputePipeline("subgroupAny.comp.spv"); pipelines.push_back(p);
+            vkBeginCommandBuffer(cmdbuf, &cmdbuf_begin_info);
+            vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, p);
+            vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &ds, 0, nullptr);
+            // prefill magic number
+            vkCmdFillBuffer(cmdbuf, dstbuf, 0, SSBO_SIZE, 66666666);
+            vkCmdFillBuffer(cmdbuf, dstbuf, 0, 4, 0); // only first element is filled with 0
+            // write to dstbuf
+            vkCmdDispatch(cmdbuf, 1, 1, 1); // (1x1x1), (32x1x1)
+            // copy the result back to resbuf
+            VkBufferCopy region {
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = SSBO_SIZE,
+            };
+            vkCmdCopyBuffer(cmdbuf, dstbuf, resbuf, 1, &region);
+            vkEndCommandBuffer(cmdbuf);
+
+            VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cmdbuf;
+            vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+            vkDeviceWaitIdle(dev);
+            // verify
+            void *buf_ptr;
+            vkMapMemory(dev, resbuf_mem, 0, SSBO_SIZE, 0, &buf_ptr);
+            for (int i = 0; i < ELE_NUM; i++) {
+                //std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                assert(*(static_cast<int *>(buf_ptr) + i) == i);
+            }
+            vkUnmapMemory(dev, resbuf_mem);
+        }
+        {
+            VkPipeline p = CreateComputePipeline("subgroupAllEqual.comp.spv"); pipelines.push_back(p);
+            vkBeginCommandBuffer(cmdbuf, &cmdbuf_begin_info);
+            vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, p);
+            vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &ds, 0, nullptr);
+            // prefill magic number
+            vkCmdFillBuffer(cmdbuf, dstbuf, 0, SSBO_SIZE, 66666666);
+            // write to dstbuf
+            vkCmdDispatch(cmdbuf, 1, 1, 1); // (1x1x1), (32x1x1)
+            // copy the result back to resbuf
+            VkBufferCopy region {
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = SSBO_SIZE,
+            };
+            vkCmdCopyBuffer(cmdbuf, dstbuf, resbuf, 1, &region);
+            vkEndCommandBuffer(cmdbuf);
+
+            VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cmdbuf;
+            vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+            vkDeviceWaitIdle(dev);
+            // verify
+            void *buf_ptr;
+            vkMapMemory(dev, resbuf_mem, 0, SSBO_SIZE, 0, &buf_ptr);
+            for (int i = 0; i < ELE_NUM; i++) {
+                //std::cout << *(static_cast<int *>(buf_ptr) + i) << std::endl;
+                assert(*(static_cast<int *>(buf_ptr) + i) == i);
             }
             vkUnmapMemory(dev, resbuf_mem);
         }
