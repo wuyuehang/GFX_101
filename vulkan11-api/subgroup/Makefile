@@ -29,6 +29,7 @@ spv :
 	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBallotFindLSB.comp.glsl -o subgroupBallotFindLSB.comp.spv
 	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBallotFindMSB.comp.glsl -o subgroupBallotFindMSB.comp.spv
 	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupShuffle.comp.glsl -o subgroupShuffle.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupClusteredAdd.comp.glsl -o subgroupClusteredAdd.comp.spv
 
 clean:
 	rm -rf $(binary)
