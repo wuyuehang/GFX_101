@@ -133,6 +133,7 @@ GLuint CreateXFBProgram(std::string file, std::vector<const GLchar *> xfb_list, 
     return P;
 }
 
+#if GL_BACKEND
 static const char *drawtexture_vertex = "#version 460 core\n"
     "layout (location = 0) in vec2 vPos;\n"
     "layout (location = 1) in vec2 vUV;\n"
@@ -149,7 +150,28 @@ static const char *drawtexture_fragment = "#version 460 core\n"
     "void main() {\n"
     "   SV_Target = texture(TEX0_DIFFUSE, fUV);\n"
     "}";
+#endif
 
+#if ES_BACKEND
+static const char *drawtexture_vertex = "#version 320 es\n"
+    "precision highp float;\n"
+    "layout (location = 0) in vec2 vPos;\n"
+    "layout (location = 1) in vec2 vUV;\n"
+    "layout (location = 0) out vec2 fUV;\n"
+    "void main() {\n"
+    "   gl_Position = vec4(vPos, 0.0, 1.0);\n"
+    "   fUV = vUV;\n"
+    "}";
+
+static const char *drawtexture_fragment = "#version 320 es\n"
+    "precision highp float;\n"
+    "layout (location = 0) in vec2 fUV;\n"
+    "layout (location = 0) out vec4 SV_Target;\n"
+    "uniform sampler2D TEX0_DIFFUSE;\n"
+    "void main() {\n"
+    "   SV_Target = texture(TEX0_DIFFUSE, fUV);\n"
+    "}";
+#endif
 void DrawTexture(GLuint target) {
     GLfloat vertex_buf[] = {
         -1.0, -1.0, 0.0, 0.0, // bottom-left

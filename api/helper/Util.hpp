@@ -1,7 +1,14 @@
 #ifndef UTIL_HPP
 #define UTIL_HPP
 
+#if GL_BACKEND
 #include <GL/glew.h>
+#endif
+
+#if ES_BACKEND
+#include <GLES3/gl32.h>
+#endif
+
 #include <string>
 #include <vector>
 
