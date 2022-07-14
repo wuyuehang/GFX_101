@@ -14,19 +14,21 @@ main : main.cpp
 	g++ $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 spv :
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V gl_SubgroupInvocationID.comp.glsl -o gl_SubgroupInvocationID.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupElect.comp.glsl -o subgroupElect.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAll.comp.glsl -o subgroupAll.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAny.comp.glsl -o subgroupAny.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAllEqual.comp.glsl -o subgroupAllEqual.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupAdd.comp.glsl -o subgroupAdd.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupMax.comp.glsl -o subgroupMax.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupInclusiveAdd.comp.glsl -o subgroupInclusiveAdd.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupExclusiveAdd.comp.glsl -o subgroupExclusiveAdd.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupBroadcast.comp.glsl -o subgroupBroadcast.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupBroadcastFirst.comp.glsl -o subgroupBroadcastFirst.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupBallot.comp.glsl -o subgroupBallot.comp.spv
-	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.6 -V subgroupShuffle.comp.glsl -o subgroupShuffle.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V gl_SubgroupInvocationID.comp.glsl -o gl_SubgroupInvocationID.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupElect.comp.glsl -o subgroupElect.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupAll.comp.glsl -o subgroupAll.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupAny.comp.glsl -o subgroupAny.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupAllEqual.comp.glsl -o subgroupAllEqual.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupAdd.comp.glsl -o subgroupAdd.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupMax.comp.glsl -o subgroupMax.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupInclusiveAdd.comp.glsl -o subgroupInclusiveAdd.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupExclusiveAdd.comp.glsl -o subgroupExclusiveAdd.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBroadcast.comp.glsl -o subgroupBroadcast.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBroadcastFirst.comp.glsl -o subgroupBroadcastFirst.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBallot.comp.glsl -o subgroupBallot.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBallotFindLSB.comp.glsl -o subgroupBallotFindLSB.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupBallotFindMSB.comp.glsl -o subgroupBallotFindMSB.comp.spv
+	$(VK_SDK_PATH)/bin/glslangValidator --target-env spirv1.5 -V subgroupShuffle.comp.glsl -o subgroupShuffle.comp.spv
 
 clean:
 	rm -rf $(binary)
