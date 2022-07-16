@@ -1,0 +1,83 @@
+#include <vulkan/vulkan.h>
+#include <iostream>
+#include <vector>
+
+class SkeletonVulkan {
+public:
+    SkeletonVulkan() {
+        VkApplicationInfo appInfo {
+            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pNext = nullptr,
+            .pApplicationName = "SkeletonVulkan",
+            .applicationVersion = 0,
+            .pEngineName = "SkeletonVulkan",
+            .engineVersion = 0,
+            .apiVersion = VK_API_VERSION_1_0,
+        };
+        VkInstanceCreateInfo instInfo {
+            .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .pApplicationInfo = &appInfo,
+            .enabledLayerCount = 0,
+            .ppEnabledLayerNames = nullptr,
+            .enabledExtensionCount = 0,
+            .ppEnabledExtensionNames = nullptr,
+        };
+        vkCreateInstance(&instInfo, nullptr, &instance);
+
+        uint32_t nof;
+        vkEnumeratePhysicalDevices(instance, &nof, nullptr);
+        std::vector<VkPhysicalDevice> pdev(nof);
+        vkEnumeratePhysicalDevices(instance, &nof, pdev.data());
+
+        for (auto it : pdev) {
+            VkPhysicalDeviceProperties prop {};
+            vkGetPhysicalDeviceProperties(it, &prop);
+            std::cout << "vendor " << std::hex << prop.vendorID << ", name " << prop.deviceName << std::endl;
+
+            uint32_t nof;
+            vkGetPhysicalDeviceQueueFamilyProperties(it, &nof, nullptr);
+            std::vector<VkQueueFamilyProperties> queue_prop(nof);
+            vkGetPhysicalDeviceQueueFamilyProperties(it, &nof, queue_prop.data());
+        }
+
+        const float qp = 1.0;
+        VkDeviceQueueCreateInfo queueInfo {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .queueFamilyIndex = 0,
+            .queueCount = 1,
+            .pQueuePriorities = &qp,
+        };
+
+        VkDeviceCreateInfo deviceInfo {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .queueCreateInfoCount = 1,
+            .pQueueCreateInfos = & queueInfo,
+            .enabledLayerCount = 0,
+            .ppEnabledLayerNames = nullptr,
+            .enabledExtensionCount = 0,
+            .ppEnabledExtensionNames = nullptr,
+            .pEnabledFeatures = nullptr,
+        };
+        vkCreateDevice(pdev[0], &deviceInfo, nullptr, &device);
+        vkGetDeviceQueue(device, 0, 0, &queue);
+    }
+    ~SkeletonVulkan() {
+        vkDestroyDevice(device, nullptr);
+        vkDestroyInstance(instance, nullptr);
+    }
+private:
+    VkInstance instance;
+    VkDevice device;
+    VkQueue queue;
+};
+
+int main() {
+    SkeletonVulkan T;
+    return 0;
+}
