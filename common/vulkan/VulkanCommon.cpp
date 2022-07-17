@@ -93,210 +93,20 @@ void GfxBuffer::host_update(const void *src, VkDeviceSize size) {
     vkUnmapMemory(core->get_dev(), memory);
 }
 
-#if 0
 GfxImage::~GfxImage() {
     vkDestroyImageView(core->get_dev(), view, nullptr);
     vkFreeMemory(core->get_dev(), memory, nullptr);
     vkDestroyImage(core->get_dev(), image, nullptr);
 }
 
-void GfxImage::init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags usage, VkMemoryPropertyFlags req_prop, VkImageAspectFlags aspect) {
+void GfxImage::init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags usage, VkMemoryPropertyFlags req_prop, VkImageAspectFlags aspect, uint32_t nof_layer) {
     extent = ext;
     m_aspect_mask = aspect;
     m_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    m_width = ext.width;
+    m_height = ext.height;
 
-    VkImageCreateInfo image_info {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .imageType = VK_IMAGE_TYPE_2D,
-        .format = fmt,
-        .extent = ext,
-        .mipLevels = 1,
-        .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = usage,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .queueFamilyIndexCount = 0,
-        .pQueueFamilyIndices = nullptr,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    };
-    vkCreateImage(core->get_dev(), &image_info, nullptr, &image);
-
-    vkGetImageMemoryRequirements(core->get_dev(), image, &req);
-
-    VkMemoryAllocateInfo alloc_info {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext = nullptr,
-        .allocationSize = req.size,
-        .memoryTypeIndex = findMemoryType(core->get_mem_properties(), req.memoryTypeBits, req_prop),
-    };
-    vkAllocateMemory(core->get_dev(), &alloc_info, nullptr, &memory);
-
-    vkBindImageMemory(core->get_dev(), image, memory, 0);
-
-    VkImageViewCreateInfo view_info {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = 0,
-        .image = image,
-        .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = fmt,
-        .components = VkComponentMapping { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A },
-        .subresourceRange = VkImageSubresourceRange {
-            .aspectMask = aspect,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    };
-    vkCreateImageView(core->get_dev(), &view_info, nullptr, &view);
-}
-
-void GfxImage::upload(const void *src, VkDeviceSize size, VkImageSubresourceRange &range, VkBufferImageCopy &region) {
-    assert(m_layout == VK_IMAGE_LAYOUT_UNDEFINED);
-
-    // first, upload the linear content to a staging buffer
-    GfxBuffer *linear_buf = new GfxBuffer(core);
-    linear_buf->init(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    linear_buf->update(src, size);
-
-    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    vkBeginCommandBuffer(core->get_transfer_cmdbuf(), &cmdbuf_begin_info);
-
-    // second, transition image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-    VkImageMemoryBarrier imb {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .pNext = nullptr,
-        .srcAccessMask = 0,
-        .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = image,
-        .subresourceRange = range,
-    };
-
-    vkCmdPipelineBarrier(core->get_transfer_cmdbuf(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imb);
-
-    // third, blit the buffer into image
-    vkCmdCopyBufferToImage(core->get_transfer_cmdbuf(), linear_buf->get_buffer(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region); // must be VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL or VK_IMAGE_LAYOUT_GENERAL
-
-    vkEndCommandBuffer(core->get_transfer_cmdbuf());
-
-    VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit_info.commandBufferCount = 1;
-    auto temp = core->get_transfer_cmdbuf(); submit_info.pCommandBuffers = &temp;
-
-    VkFence fence;
-    VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-    vkCreateFence(core->get_dev(), &fence_info, nullptr, &fence);
-    vkQueueSubmit(core->get_queue(), 1, &submit_info, fence);
-    vkWaitForFences(core->get_dev(), 1, &fence, VK_TRUE, UINT64_MAX);
-
-    vkDestroyFence(core->get_dev(), fence, nullptr);
-    delete linear_buf;
-    vkResetCommandBuffer(core->get_transfer_cmdbuf(), VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-
-    m_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    m_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-}
-
-void GfxImage::bake(const std::string filename) {
-    int w, h, c;
-    uint8_t *ptr = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
-    assert(ptr);
-
-    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-    VkImageSubresourceRange range {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .baseMipLevel = 0,
-        .levelCount = 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
-    };
-    VkBufferImageCopy region {
-        .bufferOffset = 0,
-        .bufferRowLength = 0,
-        .bufferImageHeight = 0,
-        .imageSubresource = VkImageSubresourceLayers {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .mipLevel = 0,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-        .imageOffset = VkOffset3D {},
-        .imageExtent = VkExtent3D { (uint32_t)w, (uint32_t)h, 1 },
-    };
-    // Currently, only support 4 channels format, so that make the larger size than usual to satisify buffer to image blit
-    this->upload(ptr, sizeof(uint8_t)*w*h*4, range, region);
-
-    stbi_image_free(ptr);
-}
-
-void GfxImage::transition(VkImageLayout new_layout, VkPipelineStageFlags stage_mask) {
-    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    vkBeginCommandBuffer(core->get_transfer_cmdbuf(), &cmdbuf_begin_info);
-
-    VkImageMemoryBarrier imb { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    imb.oldLayout = m_layout;
-    imb.newLayout = new_layout;
-    imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imb.image = image;
-    imb.subresourceRange = VkImageSubresourceRange {
-        .aspectMask = m_aspect_mask,
-        .baseMipLevel = 0,
-        .levelCount = 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
-    };
-
-    if (m_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-        imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    } else {
-        assert(0);
-    }
-    vkCmdPipelineBarrier(core->get_transfer_cmdbuf(), m_stage_mask, stage_mask, 0, 0, nullptr, 0, nullptr, 1, &imb);
-
-    vkEndCommandBuffer(core->get_transfer_cmdbuf());
-
-    VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit_info.commandBufferCount = 1;
-    auto temp = core->get_transfer_cmdbuf(); submit_info.pCommandBuffers = &temp;
-
-    VkFence fence;
-    VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-    vkCreateFence(core->get_dev(), &fence_info, nullptr, &fence);
-    vkQueueSubmit(core->get_queue(), 1, &submit_info, fence);
-    vkWaitForFences(core->get_dev(), 1, &fence, VK_TRUE, UINT64_MAX);
-
-    vkDestroyFence(core->get_dev(), fence, nullptr);
-    vkResetCommandBuffer(core->get_transfer_cmdbuf(), VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-
-    m_stage_mask = stage_mask;
-}
-
-Image2DArray::~Image2DArray() {
-    vkDestroyImageView(core->get_dev(), view, nullptr);
-    vkFreeMemory(core->get_dev(), memory, nullptr);
-    vkDestroyImage(core->get_dev(), image, nullptr);
-}
-
-void Image2DArray::init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags usage, VkMemoryPropertyFlags req_prop, VkImageAspectFlags aspect, uint32_t nof_layer) {
-    extent = ext;
-    m_aspect_mask = aspect;
-    m_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkImageCreateInfo image_info {
+    VkImageCreateInfo imageInfo {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
@@ -313,26 +123,26 @@ void Image2DArray::init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags us
         .pQueueFamilyIndices = nullptr,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
-    vkCreateImage(core->get_dev(), &image_info, nullptr, &image);
+    vkCreateImage(core->get_dev(), &imageInfo, nullptr, &image);
 
     vkGetImageMemoryRequirements(core->get_dev(), image, &req);
 
-    VkMemoryAllocateInfo alloc_info {
+    VkMemoryAllocateInfo allocInfo {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .pNext = nullptr,
         .allocationSize = req.size,
         .memoryTypeIndex = findMemoryType(core->get_mem_properties(), req.memoryTypeBits, req_prop),
     };
-    vkAllocateMemory(core->get_dev(), &alloc_info, nullptr, &memory);
+    vkAllocateMemory(core->get_dev(), &allocInfo, nullptr, &memory);
 
     vkBindImageMemory(core->get_dev(), image, memory, 0);
 
-    VkImageViewCreateInfo view_info {
+    VkImageViewCreateInfo viewInfo {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
         .image = image,
-        .viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .format = fmt,
         .components = VkComponentMapping { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A },
         .subresourceRange = VkImageSubresourceRange {
@@ -343,21 +153,20 @@ void Image2DArray::init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags us
             .layerCount = nof_layer,
         },
     };
-    vkCreateImageView(core->get_dev(), &view_info, nullptr, &view);
+    vkCreateImageView(core->get_dev(), &viewInfo, nullptr, &view);
 }
-#endif
-#if 0
-void GfxImage::upload(const void *src, VkDeviceSize size, VkImageSubresourceRange &range, VkBufferImageCopy &region) {
+
+void GfxImage2D::device_upload(const void *src, VkDeviceSize size, VkImageSubresourceRange & range, VkBufferImageCopy & region) {
     assert(m_layout == VK_IMAGE_LAYOUT_UNDEFINED);
 
     // first, upload the linear content to a staging buffer
     GfxBuffer *linear_buf = new GfxBuffer(core);
     linear_buf->init(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    linear_buf->update(src, size);
+    linear_buf->host_update(src, size);
 
-    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    vkBeginCommandBuffer(core->get_transfer_cmdbuf(), &cmdbuf_begin_info);
+    VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    vkBeginCommandBuffer(core->get_transfer_cmdbuf(), &beginInfo);
 
     // second, transition image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     VkImageMemoryBarrier imb {
@@ -380,14 +189,14 @@ void GfxImage::upload(const void *src, VkDeviceSize size, VkImageSubresourceRang
 
     vkEndCommandBuffer(core->get_transfer_cmdbuf());
 
-    VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit_info.commandBufferCount = 1;
-    auto temp = core->get_transfer_cmdbuf(); submit_info.pCommandBuffers = &temp;
+    VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submitInfo.commandBufferCount = 1;
+    auto temp = core->get_transfer_cmdbuf(); submitInfo.pCommandBuffers = &temp;
 
     VkFence fence;
-    VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-    vkCreateFence(core->get_dev(), &fence_info, nullptr, &fence);
-    vkQueueSubmit(core->get_queue(), 1, &submit_info, fence);
+    VkFenceCreateInfo fenceInfo { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    vkCreateFence(core->get_dev(), &fenceInfo, nullptr, &fence);
+    vkQueueSubmit(core->get_queue(), 1, &submitInfo, fence);
     vkWaitForFences(core->get_dev(), 1, &fence, VK_TRUE, UINT64_MAX);
 
     vkDestroyFence(core->get_dev(), fence, nullptr);
@@ -398,13 +207,12 @@ void GfxImage::upload(const void *src, VkDeviceSize size, VkImageSubresourceRang
     m_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 }
 
-void GfxImage::bake(const std::string filename) {
+void GfxImage2D::bake(const std::string filename, VkImageUsageFlags usage) {
     int w, h, c;
     uint8_t *ptr = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
     assert(ptr);
 
-    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, VK_FORMAT_R8G8B8A8_SRGB, usage,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
     VkImageSubresourceRange range {
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -427,15 +235,15 @@ void GfxImage::bake(const std::string filename) {
         .imageExtent = VkExtent3D { (uint32_t)w, (uint32_t)h, 1 },
     };
     // Currently, only support 4 channels format, so that make the larger size than usual to satisify buffer to image blit
-    this->upload(ptr, sizeof(uint8_t)*w*h*4, range, region);
+    this->device_upload(ptr, sizeof(uint8_t)*w*h*4, range, region);
 
     stbi_image_free(ptr);
 }
 
-void Image2DArray::transition(VkImageLayout new_layout, VkPipelineStageFlags stage_mask) {
-    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    vkBeginCommandBuffer(core->get_transfer_cmdbuf(), &cmdbuf_begin_info);
+void GfxImage2D::transition(VkImageLayout new_layout, VkPipelineStageFlags stage_mask) {
+    VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    vkBeginCommandBuffer(core->get_transfer_cmdbuf(), &beginInfo);
 
     VkImageMemoryBarrier imb { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     imb.oldLayout = m_layout;
@@ -454,6 +262,16 @@ void Image2DArray::transition(VkImageLayout new_layout, VkPipelineStageFlags sta
     if (m_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
         imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    } else if (m_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imb.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    } else if (m_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        {
+            // make validation happy
+            m_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            imb.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        }
+        imb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     } else {
         assert(0);
     }
@@ -461,22 +279,22 @@ void Image2DArray::transition(VkImageLayout new_layout, VkPipelineStageFlags sta
 
     vkEndCommandBuffer(core->get_transfer_cmdbuf());
 
-    VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit_info.commandBufferCount = 1;
-    auto temp = core->get_transfer_cmdbuf(); submit_info.pCommandBuffers = &temp;
+    VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submitInfo.commandBufferCount = 1;
+    auto temp = core->get_transfer_cmdbuf(); submitInfo.pCommandBuffers = &temp;
 
     VkFence fence;
-    VkFenceCreateInfo fence_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-    vkCreateFence(core->get_dev(), &fence_info, nullptr, &fence);
-    vkQueueSubmit(core->get_queue(), 1, &submit_info, fence);
+    VkFenceCreateInfo fenceInfo { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    vkCreateFence(core->get_dev(), &fenceInfo, nullptr, &fence);
+    vkQueueSubmit(core->get_queue(), 1, &submitInfo, fence);
     vkWaitForFences(core->get_dev(), 1, &fence, VK_TRUE, UINT64_MAX);
 
     vkDestroyFence(core->get_dev(), fence, nullptr);
     vkResetCommandBuffer(core->get_transfer_cmdbuf(), VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
+    m_layout = new_layout;
     m_stage_mask = stage_mask;
 }
-#endif
 
 uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties mem_properties, uint32_t memoryTypeBit, VkMemoryPropertyFlags request_prop) {
     for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
@@ -490,7 +308,6 @@ uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties mem_properties, uint32_
     return -1;
 }
 
-#if 0
 VkShaderModule loadSPIRV(VkDevice &dev, const std::string str) {
     std::ifstream f(str, std::ios::ate | std::ios::binary);
     size_t size = (size_t)f.tellg();
@@ -507,6 +324,23 @@ VkShaderModule loadSPIRV(VkDevice &dev, const std::string str) {
 
     return shader;
 }
-#endif
+
+void begin_cmdbuf(VkCommandBuffer cmdbuf) {
+    VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    vkBeginCommandBuffer(cmdbuf, &beginInfo);
+}
+
+void submit_and_wait(VkCommandBuffer cmdbuf, VkQueue queue) {
+    VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmdbuf;
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+}
+
+void end_cmdbuf(VkCommandBuffer cmdbuf) {
+    vkEndCommandBuffer(cmdbuf);
+}
 
 } // namespace common

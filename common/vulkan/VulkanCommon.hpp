@@ -32,19 +32,19 @@ private:
     VkMemoryRequirements req;
 };
 
-#if 0
 class GfxImage {
 public:
     GfxImage() = delete;
+    GfxImage &operator=(const GfxImage &) = delete;
     GfxImage(const GfxImage &) = delete;
     GfxImage(VulkanCore *app) : core(app) { assert(app != nullptr); }
-    void init(const VkExtent3D, VkFormat, VkImageUsageFlags, VkMemoryPropertyFlags, VkImageAspectFlags);
-    void upload(const void *, VkDeviceSize, VkImageSubresourceRange &, VkBufferImageCopy &);
-    void bake(const std::string);
-    void transition(VkImageLayout, VkPipelineStageFlags);
+    void init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags usage, VkMemoryPropertyFlags req_prop, VkImageAspectFlags aspect, uint32_t nof_layer = 1);
     const VkImageView& get_image_view() const { return view; }
+    const VkImage& get_image() const { return image; }
+    const uint32_t get_width() const { return m_width; }
+    const uint32_t get_height() const { return m_height; }
     ~GfxImage();
-private:
+protected:
     const VulkanCore *core;
     VkImage image;
     VkDeviceMemory memory;
@@ -54,36 +54,38 @@ private:
     VkImageLayout m_layout;
     VkImageAspectFlags m_aspect_mask;
     VkPipelineStageFlags m_stage_mask;
+    uint32_t m_width;
+    uint32_t m_height;
 };
-#endif
 
-#if 0
-class Image2DArray {
+class GfxImage2D : public GfxImage {
 public:
-    Image2DArray() = delete;
-    Image2DArray(const Image2DArray &) = delete;
-    Image2DArray(VulkanCore *app) : core(app) { assert(app != nullptr); }
-    void init(const VkExtent3D, VkFormat, VkImageUsageFlags, VkMemoryPropertyFlags, VkImageAspectFlags, uint32_t);
-    //void upload(const void *, VkDeviceSize, VkImageSubresourceRange &, VkBufferImageCopy &);
-    //void bake(const std::string);
-    //void transition(VkImageLayout, VkPipelineStageFlags);
-    const VkImageView& get_image_view() const { return view; }
-    ~Image2DArray();
-private:
-    const VulkanCore *core;
-    VkImage image;
-    VkDeviceMemory memory;
-    VkImageView view;
-    VkMemoryRequirements req;
-    VkExtent3D extent;
-    VkImageLayout m_layout;
-    VkImageAspectFlags m_aspect_mask;
-    VkPipelineStageFlags m_stage_mask;
+    GfxImage2D() = delete;
+    GfxImage2D &operator=(const GfxImage2D &) = delete;
+    GfxImage2D(const GfxImage2D &) = delete;
+    GfxImage2D(VulkanCore *app) : GfxImage(app) { assert(app != nullptr); }
+    void device_upload(const void *, VkDeviceSize, VkImageSubresourceRange &, VkBufferImageCopy &);
+    void bake(const std::string, VkImageUsageFlags usage);
+    void transition(VkImageLayout, VkPipelineStageFlags);
+    ~GfxImage2D() {}
 };
-#endif
+
+class GfxImage2DArray : public GfxImage {
+public:
+    GfxImage2DArray() = delete;
+    GfxImage2DArray &operator=(const GfxImage2DArray &) = delete;
+    GfxImage2DArray(const GfxImage2DArray &) = delete;
+    GfxImage2DArray(VulkanCore *app) : GfxImage(app) { assert(app != nullptr); }
+    ~GfxImage2DArray() {}
+};
 
 uint32_t findMemoryType(VkPhysicalDeviceMemoryProperties mem_properties, uint32_t memoryTypeBit, VkMemoryPropertyFlags request_prop);
-//VkShaderModule loadSPIRV(VkDevice &dev, const std::string str);
+VkShaderModule loadSPIRV(VkDevice &dev, const std::string str);
+
+void begin_cmdbuf(VkCommandBuffer cmdbuf);
+void submit_and_wait(VkCommandBuffer cmdbuf, VkQueue queue);
+void end_cmdbuf(VkCommandBuffer cmdbuf);
 
 } // namespace common
+
 #endif

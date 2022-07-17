@@ -16,17 +16,10 @@ public:
             buf->init(SZ, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-            VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-            vkBeginCommandBuffer(transfer_cmdbuf, &beginInfo);
+            begin_cmdbuf(transfer_cmdbuf);
             vkCmdFillBuffer(transfer_cmdbuf, buf->get_buffer(), 0, SZ, 0x12345678);
-            vkEndCommandBuffer(transfer_cmdbuf);
-
-            VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &transfer_cmdbuf;
-            vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(queue);
+            end_cmdbuf(transfer_cmdbuf);
+            submit_and_wait(transfer_cmdbuf, queue);
 
             void *ptr;
             vkMapMemory(dev, buf->get_memory(), 0, SZ, 0, &ptr);
@@ -45,17 +38,10 @@ public:
             buf->init(SZ, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-            VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-            vkBeginCommandBuffer(transfer_cmdbuf, &beginInfo);
+            begin_cmdbuf(transfer_cmdbuf);
             vkCmdUpdateBuffer(transfer_cmdbuf, buf->get_buffer(), 0, SZ, data);
-            vkEndCommandBuffer(transfer_cmdbuf);
-
-            VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &transfer_cmdbuf;
-            vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(queue);
+            end_cmdbuf(transfer_cmdbuf);
+            submit_and_wait(transfer_cmdbuf, queue);
 
             void *ptr;
             vkMapMemory(dev, buf->get_memory(), 0, SZ, 0, &ptr);
@@ -75,9 +61,7 @@ public:
             dstbuf->init(SZ, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-            VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-            vkBeginCommandBuffer(transfer_cmdbuf, &beginInfo);
+            begin_cmdbuf(transfer_cmdbuf);
             vkCmdFillBuffer(transfer_cmdbuf, srcbuf->get_buffer(), 0, SZ, 0x12345678);
 
             VkBufferCopy region {
@@ -86,13 +70,8 @@ public:
                 .size = SZ,
             };
             vkCmdCopyBuffer(transfer_cmdbuf, srcbuf->get_buffer(), dstbuf->get_buffer(), 1, &region);
-            vkEndCommandBuffer(transfer_cmdbuf);
-
-            VkSubmitInfo submitInfo { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &transfer_cmdbuf;
-            vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(queue);
+            end_cmdbuf(transfer_cmdbuf);
+            submit_and_wait(transfer_cmdbuf, queue);
 
             void *ptr;
             vkMapMemory(dev, dstbuf->get_memory(), 0, SZ, 0, &ptr);
