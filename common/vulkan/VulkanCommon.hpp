@@ -4,10 +4,17 @@
 #include <vulkan/vulkan.h>
 #include <cassert>
 #include <fstream>
+#include <glm/glm.hpp>
 #include <string>
 #include <vector>
 
 namespace common {
+
+struct MVP {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
 
 class VulkanCore;
 
@@ -21,8 +28,10 @@ public:
     void init(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags req_prop);
     void device_upload(const void *src, VkDeviceSize size);
     void host_update(const void *src, VkDeviceSize size);
+    void set_descriptor_info(VkDeviceSize offset, VkDeviceSize size);
     const VkBuffer & get_buffer() const { return buffer; }
     const VkDeviceMemory & get_memory() const { return memory; }
+    VkDescriptorBufferInfo & get_descriptor_info() { return descriptor_info; }
 private:
     friend class GfxImage;
     const VulkanCore *core;
@@ -30,6 +39,7 @@ private:
     VkDeviceMemory memory;
     VkBufferView view;
     VkMemoryRequirements req;
+    VkDescriptorBufferInfo descriptor_info;
 };
 
 class GfxImage {
@@ -94,6 +104,14 @@ VkPipelineRasterizationStateCreateInfo GfxPipelineRasterizationState(VkPolygonMo
 VkPipelineMultisampleStateCreateInfo GfxPipelineMultisampleState(VkSampleCountFlagBits sample);
 VkPipelineColorBlendAttachmentState GfxPipelineColorBlendAttachmentState(VkBool32 blend_enable=VK_FALSE);
 VkPipelineColorBlendStateCreateInfo GfxPipelineBlendState(VkPipelineColorBlendAttachmentState *blend_att_state);
+
+VkDescriptorSetLayoutBinding GfxDescriptorSetLayoutBinding(uint32_t index, VkDescriptorType type, uint32_t count, VkShaderStageFlags stage);
+VkDescriptorSetLayoutCreateInfo GfxDescriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> & bindings);
+VkPipelineLayoutCreateInfo GfxPipelineLayoutCreateInfo(VkDescriptorSetLayout *dsl, uint32_t count);
+VkDescriptorPoolSize GfxDescriptorPoolSize(VkDescriptorType type, uint32_t count);
+VkDescriptorPoolCreateInfo GfxDescriptorPoolCreateInfo(uint32_t max_set, std::vector<VkDescriptorPoolSize> & pool_size);
+VkDescriptorSetAllocateInfo GfxDescriptorSetAllocateInfo(VkDescriptorPool pool, VkDescriptorSetLayout *dsl, uint32_t count);
+VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorBufferInfo *buffer_info);
 
 } // namespace common
 

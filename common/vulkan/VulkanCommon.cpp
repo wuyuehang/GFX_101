@@ -93,6 +93,12 @@ void GfxBuffer::host_update(const void *src, VkDeviceSize size) {
     vkUnmapMemory(core->get_dev(), memory);
 }
 
+void GfxBuffer::set_descriptor_info(VkDeviceSize offset, VkDeviceSize size) {
+    descriptor_info.buffer = buffer;
+    descriptor_info.offset = offset;
+    descriptor_info.range = size;
+}
+
 GfxImage::~GfxImage() {
     vkDestroyImageView(core->get_dev(), view, nullptr);
     vkFreeMemory(core->get_dev(), memory, nullptr);
@@ -431,6 +437,80 @@ VkPipelineColorBlendStateCreateInfo GfxPipelineBlendState(VkPipelineColorBlendAt
     blend_state.attachmentCount = 1;
     blend_state.pAttachments = blend_att_state;
     return blend_state;
+}
+
+VkDescriptorSetLayoutBinding GfxDescriptorSetLayoutBinding(uint32_t index, VkDescriptorType type, uint32_t count, VkShaderStageFlags stage) {
+    return VkDescriptorSetLayoutBinding {
+        .binding = index,
+        .descriptorType = type,
+        .descriptorCount = count,
+        .stageFlags = stage,
+    };
+}
+
+VkDescriptorSetLayoutCreateInfo GfxDescriptorSetLayoutCreateInfo(std::vector<VkDescriptorSetLayoutBinding> & bindings) {
+    return VkDescriptorSetLayoutCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .bindingCount = (uint32_t)bindings.size(),
+        .pBindings = bindings.data()
+    };
+}
+
+VkPipelineLayoutCreateInfo GfxPipelineLayoutCreateInfo(VkDescriptorSetLayout *dsl, uint32_t count) {
+    return VkPipelineLayoutCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .setLayoutCount = count,
+        .pSetLayouts = dsl,
+        .pushConstantRangeCount = 0,
+        .pPushConstantRanges = nullptr,
+    };
+}
+
+VkDescriptorPoolSize GfxDescriptorPoolSize(VkDescriptorType type, uint32_t count) {
+    return VkDescriptorPoolSize {
+        .type = type,
+        .descriptorCount = count
+    };
+}
+
+VkDescriptorPoolCreateInfo GfxDescriptorPoolCreateInfo(uint32_t max_set, std::vector<VkDescriptorPoolSize> & pool_size) {
+    return VkDescriptorPoolCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = max_set,
+        .poolSizeCount = (uint32_t)pool_size.size(),
+        .pPoolSizes = pool_size.data()
+    };
+}
+
+VkDescriptorSetAllocateInfo GfxDescriptorSetAllocateInfo(VkDescriptorPool pool, VkDescriptorSetLayout *dsl, uint32_t count) {
+    return VkDescriptorSetAllocateInfo {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .descriptorPool = pool,
+        .descriptorSetCount = count,
+        .pSetLayouts = dsl
+    };
+}
+
+VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorBufferInfo *buffer_info) {
+    return VkWriteDescriptorSet {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = ds,
+        .dstBinding = index,
+        .dstArrayElement = 0,
+        .descriptorCount = count,
+        .descriptorType = type,
+        .pImageInfo = nullptr,
+        .pBufferInfo = buffer_info,
+        .pTexelBufferView = nullptr
+    };
 }
 
 } // namespace common
