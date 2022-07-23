@@ -18,6 +18,7 @@ public:
             .engineVersion = 0,
             .apiVersion = version,
         };
+        std::array<const char *, 2> instance_extension { "VK_KHR_surface", "VK_KHR_xcb_surface" };
         VkInstanceCreateInfo instInfo {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
@@ -25,14 +26,14 @@ public:
             .pApplicationInfo = &appInfo,
             .enabledLayerCount = 0,
             .ppEnabledLayerNames = nullptr,
-            .enabledExtensionCount = 0,
-            .ppEnabledExtensionNames = nullptr,
+            .enabledExtensionCount = instance_extension.size(),
+            .ppEnabledExtensionNames = instance_extension.data(),
         };
         vkCreateInstance(&instInfo, nullptr, &instance);
 
         uint32_t nof;
         vkEnumeratePhysicalDevices(instance, &nof, nullptr);
-        std::vector<VkPhysicalDevice> pdev(nof);
+        pdev.resize(nof);
         vkEnumeratePhysicalDevices(instance, &nof, pdev.data());
 
         for (auto it : pdev) {
@@ -55,7 +56,7 @@ public:
             .queueCount = 1,
             .pQueuePriorities = &qp,
         };
-
+        std::array<const char *, 1> dev_ext { "VK_KHR_swapchain" };
         VkDeviceCreateInfo deviceInfo {
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .pNext = nullptr,
@@ -64,8 +65,8 @@ public:
             .pQueueCreateInfos = &queueInfo,
             .enabledLayerCount = 0,
             .ppEnabledLayerNames = nullptr,
-            .enabledExtensionCount = 0,
-            .ppEnabledExtensionNames = nullptr,
+            .enabledExtensionCount = dev_ext.size(),
+            .ppEnabledExtensionNames = dev_ext.data(),
             .pEnabledFeatures = nullptr,
         };
         vkCreateDevice(pdev[0], &deviceInfo, nullptr, &dev);
@@ -97,12 +98,15 @@ public:
         vkDestroyDevice(dev, nullptr);
         vkDestroyInstance(instance, nullptr);
     }
+    VkInstance get_instance() const override final { return instance; }
+    VkPhysicalDevice get_pdev() const override final { return pdev[0]; }
     VkDevice get_dev() const override final { return dev; }
     VkQueue get_queue() const override final { return queue; }
     VkPhysicalDeviceMemoryProperties get_mem_properties() const override final { return mem_properties; }
     VkCommandBuffer get_transfer_cmdbuf() const override final { return transfer_cmdbuf; }
 protected:
     VkInstance instance;
+    std::vector<VkPhysicalDevice> pdev;
     VkDevice dev;
     VkQueue queue;
     VkPhysicalDeviceMemoryProperties mem_properties;
