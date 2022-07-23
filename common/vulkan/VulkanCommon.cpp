@@ -343,4 +343,94 @@ void end_cmdbuf(VkCommandBuffer cmdbuf) {
     vkEndCommandBuffer(cmdbuf);
 }
 
+VkPipelineInputAssemblyStateCreateInfo GfxPipelineInputAssemblyState(VkPrimitiveTopology prim) {
+    return VkPipelineInputAssemblyStateCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .topology = prim,
+        .primitiveRestartEnable = VK_FALSE, // xxx_list must be false.
+    };
+}
+
+VkViewport GfxPipelineViewport(int w, int h) {
+    return VkViewport {
+        .x = 0,
+        .y = 0,
+        .width = (float)w,
+        .height = (float)h,
+        .minDepth = 0.0,
+        .maxDepth = 1.0,
+    };
+}
+
+VkRect2D GfxPipelineScissor(int w, int h) {
+    return VkRect2D {
+        .offset = VkOffset2D { 0, 0 },
+        .extent = VkExtent2D { (uint32_t)w, (uint32_t)h }
+    };
+}
+
+VkPipelineViewportStateCreateInfo GfxPipelineViewportState(VkViewport *vp, VkRect2D *scissor) {
+    return VkPipelineViewportStateCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .viewportCount = 1,
+        .pViewports = vp,
+        .scissorCount = 1,
+        .pScissors = scissor,
+    };
+}
+
+VkPipelineRasterizationStateCreateInfo GfxPipelineRasterizationState(VkPolygonMode polygon_mode, VkCullModeFlags cull_mode, VkFrontFace front_face) {
+    return VkPipelineRasterizationStateCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .depthClampEnable = VK_FALSE, // if the depthClamp device feature is disabled, depthClampEnable must be VK_FALSE
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode = polygon_mode,
+        .cullMode = cull_mode,
+        .frontFace = front_face,
+        .depthBiasEnable = VK_FALSE,
+        .depthBiasConstantFactor = 0.0,
+        .depthBiasClamp = 0.0,
+        .depthBiasSlopeFactor = 0.0,
+        .lineWidth = 1.0,
+    };
+}
+
+VkPipelineMultisampleStateCreateInfo GfxPipelineMultisampleState(VkSampleCountFlagBits sample) {
+    return VkPipelineMultisampleStateCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .rasterizationSamples = sample,
+        .sampleShadingEnable = VK_FALSE,
+        .minSampleShading = 0.0,
+        .pSampleMask = nullptr,
+        .alphaToCoverageEnable = VK_FALSE,
+        .alphaToOneEnable = VK_FALSE,
+    };
+}
+
+VkPipelineColorBlendAttachmentState GfxPipelineColorBlendAttachmentState(VkBool32 blend_enable) {
+    VkPipelineColorBlendAttachmentState blend_att_state {};
+    blend_att_state.blendEnable = blend_enable;
+    blend_att_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    return blend_att_state;
+}
+
+VkPipelineColorBlendStateCreateInfo GfxPipelineBlendState(VkPipelineColorBlendAttachmentState *blend_att_state) {
+    // color blend
+    // if renderPass is not VK_NULL_HANDLE, the pipeline is being created with fragment output interface state,
+    // and subpass uses color attachments, pColorBlendState must be a valid pointer to a valid
+    // VkPipelineColorBlendStateCreateInfo structure.
+    VkPipelineColorBlendStateCreateInfo blend_state { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    blend_state.attachmentCount = 1;
+    blend_state.pAttachments = blend_att_state;
+    return blend_state;
+}
+
 } // namespace common

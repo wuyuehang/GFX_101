@@ -13,7 +13,7 @@ binary = main
 src = main.cpp
 src += $(common)/VulkanCore.cpp \
 	$(common)/VulkanCommon.cpp \
-	$(common)/VulkanSwapchain.cpp \
+	$(common)/VulkanSwapchain.cpp
 
 obj += $(addsuffix .o, $(basename $(notdir $(src))))
 
@@ -28,8 +28,12 @@ $(binary) : $(obj)
 %.o:$(common)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
+spv :
+	$(VK_SDK_PATH)/bin/glslangValidator -V simple.vert -o simple.vert.spv
+	$(VK_SDK_PATH)/bin/glslangValidator -V simple.frag -o simple.frag.spv
+
 clean:
-	rm -rf $(binary) $(obj)
+	rm -rf $(binary) $(obj) *.spv
 
 run:
 	LD_LIBRARY_PATH=$(VK_SDK_PATH)/lib VK_LAYER_PATH=$(VK_SDK_PATH)/etc/vulkan/explicit_layer.d \

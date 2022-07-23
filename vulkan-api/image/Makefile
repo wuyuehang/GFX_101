@@ -4,7 +4,7 @@ common = ../../common/vulkan
 thirdparty = ../../thirdparty
 
 CXXFLAGS = -std=c++11 -I$(VK_SDK_PATH)/include -I. -I$(common) -I$(thirdparty) -Wall -Wformat
-LDFLAGS = -L$(VK_SDK_PATH)/lib -lvulkan
+LDFLAGS = -L$(VK_SDK_PATH)/lib -lvulkan `pkg-config --libs glfw3`
 
 .PHONY: clean run all
 
@@ -12,7 +12,8 @@ binary = main
 
 src = main.cpp
 src += $(common)/VulkanCore.cpp \
-	$(common)/VulkanCommon.cpp
+	$(common)/VulkanCommon.cpp \
+	$(common)/VulkanSwapchain.cpp
 
 obj += $(addsuffix .o, $(basename $(notdir $(src))))
 

@@ -16,6 +16,9 @@ public:
     VulkanSwapchain(const VulkanSwapchain &) = delete;
     VulkanSwapchain &operator=(const VulkanSwapchain &) = delete;
     VulkanSwapchain(const VulkanCore *app, GLFWwindow *win) : core(app), window(win) { assert(app != nullptr && win != nullptr); }
+    VkSwapchainKHR get_swapchain() const { return swapchain; }
+    std::vector<VkImage> get_swapchain_images() const { return images; }
+    std::vector<VkImageView> get_swapchain_views() const { return views; }
     void init();
     void deinit();
 public:

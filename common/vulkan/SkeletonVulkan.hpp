@@ -1,6 +1,7 @@
 #ifndef SKELETON_VULKAN_HPP
 #define SKELETON_VULKAN_HPP
 #include "VulkanCore.hpp"
+#include "VulkanSwapchain.hpp"
 
 namespace common {
 
@@ -8,7 +9,7 @@ class SkeletonVulkan : public VulkanCore {
 public:
     SkeletonVulkan(const SkeletonVulkan &) = delete;
     SkeletonVulkan &operator=(const SkeletonVulkan &) = delete;
-    SkeletonVulkan(uint32_t version) {
+    SkeletonVulkan(uint32_t version, int32_t width=16, int32_t height=16) : m_width(width), m_height(height) {
         VkApplicationInfo appInfo {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
@@ -91,8 +92,20 @@ public:
             };
             vkAllocateCommandBuffers(dev, &allocInfo, &transfer_cmdbuf);
         }
+        {
+            glfwInit();
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+            window = glfwCreateWindow(m_width, m_height, "SkeletonVulkan", nullptr, nullptr);
+            swapchain = new VulkanSwapchain(this, window);
+            swapchain->init();
+        }
     }
     ~SkeletonVulkan() {
+        swapchain->deinit();
+        delete swapchain;
+        glfwDestroyWindow(window);
+        glfwTerminate();
         vkFreeCommandBuffers(dev, cmdpool, 1, &transfer_cmdbuf);
         vkDestroyCommandPool(dev, cmdpool, nullptr);
         vkDestroyDevice(dev, nullptr);
@@ -112,6 +125,11 @@ protected:
     VkPhysicalDeviceMemoryProperties mem_properties;
     VkCommandPool cmdpool;
     VkCommandBuffer transfer_cmdbuf;
+    GLFWwindow *window;
+    int32_t m_width; int32_t m_height;
+    VulkanSwapchain *swapchain;
+    VkSemaphore image_available_sema;
+    VkSemaphore image_render_finished_sema;
 };
 
 } // namespace common

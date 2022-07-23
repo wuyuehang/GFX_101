@@ -86,6 +86,15 @@ void begin_cmdbuf(VkCommandBuffer cmdbuf);
 void submit_and_wait(VkCommandBuffer cmdbuf, VkQueue queue);
 void end_cmdbuf(VkCommandBuffer cmdbuf);
 
+VkPipelineInputAssemblyStateCreateInfo GfxPipelineInputAssemblyState(VkPrimitiveTopology prim);
+VkViewport GfxPipelineViewport(int w, int h);
+VkRect2D GfxPipelineScissor(int w, int h);
+VkPipelineViewportStateCreateInfo GfxPipelineViewportState(VkViewport *vp, VkRect2D *scissor);
+VkPipelineRasterizationStateCreateInfo GfxPipelineRasterizationState(VkPolygonMode polygon_mode, VkCullModeFlags cull_mode, VkFrontFace front_face);
+VkPipelineMultisampleStateCreateInfo GfxPipelineMultisampleState(VkSampleCountFlagBits sample);
+VkPipelineColorBlendAttachmentState GfxPipelineColorBlendAttachmentState(VkBool32 blend_enable=VK_FALSE);
+VkPipelineColorBlendStateCreateInfo GfxPipelineBlendState(VkPipelineColorBlendAttachmentState *blend_att_state);
+
 } // namespace common
 
 #endif

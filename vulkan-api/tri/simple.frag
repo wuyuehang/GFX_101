@@ -1,6 +1,6 @@
 #version 460
 
-layout(location = 0) out vec4 SV_Target;
+layout (location = 0) out vec4 SV_Target;
 
 void main()
 {
