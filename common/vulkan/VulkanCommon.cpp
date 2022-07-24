@@ -162,6 +162,12 @@ void GfxImage::init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags usage,
     vkCreateImageView(core->get_dev(), &viewInfo, nullptr, &view);
 }
 
+void GfxImage::set_descriptor_info(VkSampler sampler, VkImageLayout layout) {
+    descriptor_info.sampler = sampler;
+    descriptor_info.imageView = view;
+    descriptor_info.imageLayout = layout;
+}
+
 void GfxImage2D::device_upload(const void *src, VkDeviceSize size, VkImageSubresourceRange & range, VkBufferImageCopy & region) {
     assert(m_layout == VK_IMAGE_LAYOUT_UNDEFINED);
 
@@ -509,6 +515,21 @@ VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, u
         .descriptorType = type,
         .pImageInfo = nullptr,
         .pBufferInfo = buffer_info,
+        .pTexelBufferView = nullptr
+    };
+}
+
+VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorImageInfo *image_info) {
+    return VkWriteDescriptorSet {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = ds,
+        .dstBinding = index,
+        .dstArrayElement = 0,
+        .descriptorCount = count,
+        .descriptorType = type,
+        .pImageInfo = image_info,
+        .pBufferInfo = nullptr,
         .pTexelBufferView = nullptr
     };
 }

@@ -49,10 +49,12 @@ public:
     GfxImage(const GfxImage &) = delete;
     GfxImage(VulkanCore *app) : core(app) { assert(app != nullptr); }
     void init(const VkExtent3D ext, VkFormat fmt, VkImageUsageFlags usage, VkMemoryPropertyFlags req_prop, VkImageAspectFlags aspect, uint32_t nof_layer = 1);
+    void set_descriptor_info(VkSampler sampler, VkImageLayout layout);
     const VkImageView& get_image_view() const { return view; }
     const VkImage& get_image() const { return image; }
     const uint32_t get_width() const { return m_width; }
     const uint32_t get_height() const { return m_height; }
+    VkDescriptorImageInfo & get_descriptor_info() { return descriptor_info; }
     ~GfxImage();
 protected:
     const VulkanCore *core;
@@ -66,6 +68,7 @@ protected:
     VkPipelineStageFlags m_stage_mask;
     uint32_t m_width;
     uint32_t m_height;
+    VkDescriptorImageInfo descriptor_info;
 };
 
 class GfxImage2D : public GfxImage {
@@ -112,6 +115,7 @@ VkDescriptorPoolSize GfxDescriptorPoolSize(VkDescriptorType type, uint32_t count
 VkDescriptorPoolCreateInfo GfxDescriptorPoolCreateInfo(uint32_t max_set, std::vector<VkDescriptorPoolSize> & pool_size);
 VkDescriptorSetAllocateInfo GfxDescriptorSetAllocateInfo(VkDescriptorPool pool, VkDescriptorSetLayout *dsl, uint32_t count);
 VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorBufferInfo *buffer_info);
+VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorImageInfo *image_info);
 
 } // namespace common
 
