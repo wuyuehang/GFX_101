@@ -28,8 +28,10 @@ public:
     void init(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags req_prop);
     void device_upload(const void *src, VkDeviceSize size);
     void host_update(const void *src, VkDeviceSize size);
+    void create_buffer_view(VkFormat fmt);
     void set_descriptor_info(VkDeviceSize offset, VkDeviceSize size);
     const VkBuffer & get_buffer() const { return buffer; }
+    const VkBufferView & get_buffer_view() const { return view; }
     const VkDeviceMemory & get_memory() const { return memory; }
     VkDescriptorBufferInfo & get_descriptor_info() { return descriptor_info; }
 private:
@@ -116,6 +118,7 @@ VkDescriptorPoolCreateInfo GfxDescriptorPoolCreateInfo(uint32_t max_set, std::ve
 VkDescriptorSetAllocateInfo GfxDescriptorSetAllocateInfo(VkDescriptorPool pool, VkDescriptorSetLayout *dsl, uint32_t count);
 VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorBufferInfo *buffer_info);
 VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, VkDescriptorImageInfo *image_info);
+VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, const VkBufferView *view);
 
 } // namespace common
 

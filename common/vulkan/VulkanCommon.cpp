@@ -9,6 +9,9 @@
 namespace common {
 
 GfxBuffer::~GfxBuffer() {
+    if (view != VK_NULL_HANDLE) {
+        vkDestroyBufferView(core->get_dev(), view, nullptr);
+    }
     vkFreeMemory(core->get_dev(), memory, nullptr);
     vkDestroyBuffer(core->get_dev(), buffer, nullptr);
 }
@@ -91,6 +94,19 @@ void GfxBuffer::host_update(const void *src, VkDeviceSize size) {
     vkMapMemory(core->get_dev(), memory, 0, size, 0, &buf_ptr);
     memcpy(buf_ptr, src, size);
     vkUnmapMemory(core->get_dev(), memory);
+}
+
+void GfxBuffer::create_buffer_view(VkFormat fmt) {
+    VkBufferViewCreateInfo bufv_info {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .buffer = buffer,
+        .format = fmt,
+        .offset = 0,
+        .range = req.size
+    };
+    vkCreateBufferView(core->get_dev(), &bufv_info, nullptr, &view);
 }
 
 void GfxBuffer::set_descriptor_info(VkDeviceSize offset, VkDeviceSize size) {
@@ -531,6 +547,21 @@ VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, u
         .pImageInfo = image_info,
         .pBufferInfo = nullptr,
         .pTexelBufferView = nullptr
+    };
+}
+
+VkWriteDescriptorSet GfxWriteDescriptorSet(VkDescriptorSet ds, uint32_t index, uint32_t count, VkDescriptorType type, const VkBufferView *view) {
+    return VkWriteDescriptorSet {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = ds,
+        .dstBinding = index,
+        .dstArrayElement = 0,
+        .descriptorCount = count,
+        .descriptorType = type,
+        .pImageInfo = nullptr,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = view
     };
 }
 
