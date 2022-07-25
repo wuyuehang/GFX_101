@@ -371,6 +371,14 @@ void end_cmdbuf(VkCommandBuffer cmdbuf) {
     vkEndCommandBuffer(cmdbuf);
 }
 
+void begin_secondary_cmdbuf(VkCommandBuffer cmdbuf, VkCommandBufferInheritanceInfo *info) {
+    VkCommandBufferBeginInfo cmdbuf_begin_info { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    cmdbuf_begin_info.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT; // Must be!!!
+    cmdbuf_begin_info.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT; // Must be!!! Becaus single secondary command is executed from different primary buffers.
+    cmdbuf_begin_info.pInheritanceInfo = info; // Must be!!!
+    vkBeginCommandBuffer(cmdbuf, &cmdbuf_begin_info);
+}
+
 VkPipelineInputAssemblyStateCreateInfo GfxPipelineInputAssemblyState(VkPrimitiveTopology prim) {
     return VkPipelineInputAssemblyStateCreateInfo {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,

@@ -23,7 +23,7 @@ public:
     GfxBuffer() = delete;
     GfxBuffer &operator=(const GfxBuffer &) = delete;
     GfxBuffer(const GfxBuffer &) = delete;
-    GfxBuffer(const VulkanCore *app) : core(app) { assert(app != nullptr); }
+    GfxBuffer(const VulkanCore *app) : core(app), view(VK_NULL_HANDLE) { assert(app != nullptr); }
     ~GfxBuffer();
     void init(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags req_prop);
     void device_upload(const void *src, VkDeviceSize size);
@@ -100,6 +100,7 @@ VkShaderModule loadSPIRV(VkDevice &dev, const std::string str);
 void begin_cmdbuf(VkCommandBuffer cmdbuf);
 void submit_and_wait(VkCommandBuffer cmdbuf, VkQueue queue);
 void end_cmdbuf(VkCommandBuffer cmdbuf);
+void begin_secondary_cmdbuf(VkCommandBuffer cmdbuf, VkCommandBufferInheritanceInfo *info);
 
 VkPipelineInputAssemblyStateCreateInfo GfxPipelineInputAssemblyState(VkPrimitiveTopology prim);
 VkViewport GfxPipelineViewport(int w, int h);
