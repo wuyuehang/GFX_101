@@ -235,12 +235,12 @@ void GfxImage2D::device_upload(const void *src, VkDeviceSize size, VkImageSubres
     m_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 }
 
-void GfxImage2D::bake(const std::string filename, VkImageUsageFlags usage) {
+void GfxImage2D::bake(const std::string filename, VkImageUsageFlags usage, VkFormat fmt) {
     int w, h, c;
     uint8_t *ptr = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
     assert(ptr);
 
-    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, VK_FORMAT_R8G8B8A8_SRGB, usage,
+    this->init(VkExtent3D { (uint32_t)w, (uint32_t)h, 1 }, fmt, usage,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
     VkImageSubresourceRange range {
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -293,6 +293,9 @@ void GfxImage2D::transition(VkImageLayout new_layout, VkPipelineStageFlags stage
     } else if (m_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
         imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         imb.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    } else if (m_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_GENERAL) {
+        imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imb.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
     } else if (m_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         {
             // make validation happy
@@ -300,6 +303,13 @@ void GfxImage2D::transition(VkImageLayout new_layout, VkPipelineStageFlags stage
             imb.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         }
         imb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    } else if (m_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_GENERAL) {
+        {
+            // make validation happy
+            m_stage_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            imb.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        }
+        imb.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
     } else {
         assert(0);
     }

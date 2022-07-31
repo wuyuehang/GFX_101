@@ -80,7 +80,7 @@ public:
     GfxImage2D(const GfxImage2D &) = delete;
     GfxImage2D(VulkanCore *app) : GfxImage(app) { assert(app != nullptr); }
     void device_upload(const void *, VkDeviceSize, VkImageSubresourceRange &, VkBufferImageCopy &);
-    void bake(const std::string, VkImageUsageFlags usage);
+    void bake(const std::string, VkImageUsageFlags usage, VkFormat fmt = VK_FORMAT_R8G8B8A8_SRGB);
     void transition(VkImageLayout, VkPipelineStageFlags);
     ~GfxImage2D() {}
 };
