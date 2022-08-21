@@ -10,6 +10,7 @@ namespace common {
 class TestSwapchain : public SkeletonVulkan {
 public:
     TestSwapchain() : SkeletonVulkan(VK_API_VERSION_1_0) {
+        SkeletonVulkan::init();
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);

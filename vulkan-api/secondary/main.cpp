@@ -11,8 +11,8 @@ namespace common {
 class TestSecondary : public SkeletonVulkan {
 public:
     TestSecondary() : SkeletonVulkan(VK_API_VERSION_1_0, 800, 800) {
+        SkeletonVulkan::init();
         {
-            vkFreeCommandBuffers(dev, cmdpool, 1, &sec_cmdbuf);
             VkSemaphoreCreateInfo semaInfo { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
             vkCreateSemaphore(dev, &semaInfo, nullptr, &image_available_sema);
             vkCreateSemaphore(dev, &semaInfo, nullptr, &image_render_finished_sema);
@@ -40,6 +40,7 @@ public:
             vkDestroyFramebuffer(dev, it, nullptr);
         }
         vkDestroyRenderPass(dev, rp, nullptr);
+        vkFreeCommandBuffers(dev, cmdpool, 1, &sec_cmdbuf);
         vkFreeCommandBuffers(dev, cmdpool, cmdbuf.size(), cmdbuf.data());
     }
     void CreateBuffer() {

@@ -11,6 +11,7 @@ namespace common {
 class TestImage : public SkeletonVulkan {
 public:
     TestImage() : SkeletonVulkan(VK_API_VERSION_1_0) {
+        SkeletonVulkan::init();
         // 1. implicit copy buffer --> image
         auto I0 = new GfxImage2D(this);
         I0->bake("../resource/buu.png", VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);

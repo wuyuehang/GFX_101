@@ -11,6 +11,7 @@ namespace common {
 class TestTexture : public SkeletonVulkan {
 public:
     TestTexture() : SkeletonVulkan(VK_API_VERSION_1_0, 800, 800) {
+        SkeletonVulkan::init();
         {
             VkSemaphoreCreateInfo semaInfo { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
             vkCreateSemaphore(dev, &semaInfo, nullptr, &image_available_sema);

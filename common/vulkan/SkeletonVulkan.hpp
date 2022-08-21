@@ -9,7 +9,8 @@ class SkeletonVulkan : public VulkanCore {
 public:
     SkeletonVulkan(const SkeletonVulkan &) = delete;
     SkeletonVulkan &operator=(const SkeletonVulkan &) = delete;
-    SkeletonVulkan(uint32_t version, int32_t width=16, int32_t height=16) : m_width(width), m_height(height) {
+    SkeletonVulkan(uint32_t version, int32_t width=16, int32_t height=16) : m_api_version(version), m_width(width), m_height(height) {}
+    void init() {
         VkApplicationInfo appInfo {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
@@ -17,7 +18,7 @@ public:
             .applicationVersion = 0,
             .pEngineName = "SkeletonVulkan",
             .engineVersion = 0,
-            .apiVersion = version,
+            .apiVersion = m_api_version,
         };
         std::array<const char *, 2> instance_extension { "VK_KHR_surface", "VK_KHR_xcb_surface" };
         VkInstanceCreateInfo instInfo {
@@ -118,6 +119,7 @@ public:
     VkPhysicalDeviceMemoryProperties get_mem_properties() const override final { return mem_properties; }
     VkCommandBuffer get_transfer_cmdbuf() const override final { return transfer_cmdbuf; }
 protected:
+    uint32_t m_api_version;
     VkInstance instance;
     std::vector<VkPhysicalDevice> pdev;
     VkDevice dev;

@@ -9,6 +9,7 @@ namespace common {
 class TestBuffer : public SkeletonVulkan {
 public:
     TestBuffer() : SkeletonVulkan(VK_API_VERSION_1_0) {
+        SkeletonVulkan::init();
         constexpr uint32_t nbr = 256;
         constexpr uint32_t SZ = nbr * sizeof(uint32_t);
         {

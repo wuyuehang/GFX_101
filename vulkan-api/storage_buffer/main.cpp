@@ -11,6 +11,7 @@ namespace common {
 class TestStorageBuffer : public SkeletonVulkan {
 public:
     TestStorageBuffer() : SkeletonVulkan(VK_API_VERSION_1_0) {
+        SkeletonVulkan::init();
         CreateStorageBuffer();
         CreateDescriptor();
         CreatePipeline();
