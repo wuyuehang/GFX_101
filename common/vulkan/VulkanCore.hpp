@@ -8,6 +8,7 @@ namespace common {
 class VulkanCore {
 public:
     virtual ~VulkanCore() = 0;
+    virtual void init() = 0;
     virtual VkInstance get_instance() const = 0;
     virtual VkPhysicalDevice get_pdev() const = 0;
     virtual VkPhysicalDeviceMemoryProperties get_mem_properties() const = 0;
